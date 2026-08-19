@@ -1,4 +1,4 @@
-# Saitenweise – lokale Rechnungsverwaltung
+# AkkordBill 2 – lokale Rechnungsverwaltung
 
 Eine vollständig clientseitige Web-App für Rechnungen rund um Gitarrenunterricht. Sie läuft als statische Vite-App auf GitHub Pages; es gibt weder Server noch Datenbank, Benutzerkonto, Tracking oder externe API-Aufrufe.
 
