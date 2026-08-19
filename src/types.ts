@@ -116,11 +116,22 @@ export interface AuditEvent {
   entityId?: string
 }
 
+export interface VoidedInvoiceNumber {
+  number: string
+  sequence: number | null
+  year: number
+  invoiceDate: string
+  deletedAt: string
+  amount: number
+  recipient: string
+}
+
 export interface AppState {
   schemaVersion: 2
   guardians: Guardian[]
   students: Student[]
   invoices: Invoice[]
+  voidedInvoiceNumbers: VoidedInvoiceNumber[]
   settings: Settings
   counters: Record<string, number>
   audit: AuditEvent[]

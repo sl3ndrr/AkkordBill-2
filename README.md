@@ -1,4 +1,4 @@
-# AkkordBill 2 – lokale Rechnungsverwaltung
+# Saitenweise – lokale Rechnungsverwaltung
 
 Eine vollständig clientseitige Web-App für Rechnungen rund um Gitarrenunterricht. Sie läuft als statische Vite-App auf GitHub Pages; es gibt weder Server noch Datenbank, Benutzerkonto, Tracking oder externe API-Aufrufe.
 
@@ -10,7 +10,7 @@ Eine vollständig clientseitige Web-App für Rechnungen rund um Gitarrenunterric
 - frei definierbare Positionen, Zahlungsziel und Textbausteine
 - Entwurf, versendet, bezahlt und automatisch erkanntes „überfällig“
 - konfigurierbarer Nummernkreis; Nummern werden erst bei Finalisierung vergeben
-- unveränderlicher Adress-/Kontostand als Snapshot auf finalisierten Rechnungen
+- eingefrorener Adress-/Kontostand als Snapshot auf finalisierten Rechnungen; kontrolliertes späteres Bearbeiten wird protokolliert
 - A4-Druckansicht im Stil der mitgelieferten LaTeX-Vorlage
 - clientseitig erzeugter EPC-GiroCode (EPC069-12 / Version 002) für SEPA-Überweisungen
 - Dashboard, Volltextsuche, Filter, Zahlungserinnerung per `mailto:`, Duplizieren wiederkehrender Rechnungen und CSV-Jahresübersicht
@@ -68,7 +68,7 @@ Das ist **keine Google-Drive-, Dropbox- oder sonstige Cloud-Integration**. Wenn 
 - Browserdaten sind an das jeweilige Browserprofil und die konkrete GitHub-Pages-Adresse gebunden. Regelmäßige JSON-Backups werden empfohlen.
 - Inkognito-Modus, das Löschen von Website-Daten oder ein Geräteverlust können lokale Daten entfernen.
 - Rechnungsnummern sind innerhalb dieses lokalen Datenbestands monoton und eindeutig. Parallel genutzte Browserprofile/Geräte teilen keinen Nummernkreis; für einen lückenlosen gemeinsamen Nummernkreis darf nur ein führender Datenbestand verwendet werden.
-- Finalisierte Rechnungen können nicht gelöscht oder inhaltlich bearbeitet werden; sie können dupliziert und ihr Zahlungsstatus kann geändert werden.
+- Finalisierte Rechnungen können bearbeitet, im Status geändert, dupliziert oder nach Bestätigung gelöscht werden. Beim Löschen bleibt die Rechnungsnummer im lokalen Nummernregister dauerhaft reserviert und wird nicht erneut vergeben.
 - Voreingestellt ist ein Hinweis auf § 19 UStG ohne Umsatzsteuerausweis. Der Rechtstext ist editierbar und muss zur tatsächlichen steuerlichen Situation passen. Die App ersetzt keine Steuer- oder Rechtsberatung.
 
 ## Tastatur

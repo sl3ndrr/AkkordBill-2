@@ -39,6 +39,21 @@ test('bereits verwendete Rechnungsnummern werden übersprungen', () => {
   assert.deepEqual(nextInvoiceAllocation(state, '2026-08-01'), { number: '2026-0002', sequence: 2, counterKey: '2026' })
 })
 
+test('gelöschte finalisierte Rechnungsnummern bleiben reserviert', () => {
+  const state = emptyState()
+  state.counters = { '2026': 1 }
+  state.voidedInvoiceNumbers = [{
+    number: '2026-0001',
+    sequence: 1,
+    year: 2026,
+    invoiceDate: '2026-08-01',
+    deletedAt: '2026-08-20T12:00:00.000Z',
+    amount: 120,
+    recipient: 'Testfamilie',
+  }]
+  assert.equal(nextInvoiceAllocation(state, '2026-08-21').number, '2026-0002')
+})
+
 test('IBAN-Prüfsumme wird validiert', () => {
   assert.equal(isValidIban('DE02 1203 0000 0000 2020 51'), true)
   assert.equal(isValidIban('DE02 1203 0000 0000 2020 52'), false)
@@ -60,9 +75,11 @@ test('versendete Rechnung wird nach Fälligkeit als überfällig erkannt', () =>
 test('vollständiges Backup lässt sich wiederherstellen', () => {
   const state = emptyState()
   state.settings.issuer.name = 'Test Unterricht'
+  state.voidedInvoiceNumbers.push({ number: '2026-0004', sequence: 4, year: 2026, invoiceDate: '2026-08-01', deletedAt: '2026-08-20T12:00:00.000Z', amount: 90, recipient: 'Testfamilie' })
   const restored = parseBackup(serializeBackup(state))
   assert.equal(restored.schemaVersion, 2)
   assert.equal(restored.settings.issuer.name, 'Test Unterricht')
+  assert.equal(restored.voidedInvoiceNumbers[0]?.number, '2026-0004')
 })
 
 test('nicht unterstütztes Backup wird abgelehnt', () => {

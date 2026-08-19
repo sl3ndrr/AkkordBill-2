@@ -13,7 +13,12 @@ export function loadState(): AppState {
     if (parsed.schemaVersion !== 2 || !Array.isArray(parsed.invoices) || !Array.isArray(parsed.guardians) || !Array.isArray(parsed.students)) {
       return emptyState()
     }
-    return { ...emptyState(), ...parsed, updatedAt: parsed.updatedAt ?? new Date().toISOString() }
+    return {
+      ...emptyState(),
+      ...parsed,
+      voidedInvoiceNumbers: Array.isArray(parsed.voidedInvoiceNumbers) ? parsed.voidedInvoiceNumbers : [],
+      updatedAt: parsed.updatedAt ?? new Date().toISOString(),
+    }
   } catch {
     return emptyState()
   }
@@ -38,11 +43,12 @@ export function parseBackup(text: string): AppState {
   if (data.schemaVersion !== 2 || !Array.isArray(data.guardians) || !Array.isArray(data.students) || !Array.isArray(data.invoices)) {
     throw new Error('Die Datei hat kein unterstütztes Backup-Format.')
   }
-  const numbers = data.invoices.map((invoice) => invoice.number).filter(Boolean)
+  const voidedInvoiceNumbers = Array.isArray(data.voidedInvoiceNumbers) ? data.voidedInvoiceNumbers : []
+  const numbers = [...data.invoices.map((invoice) => invoice.number), ...voidedInvoiceNumbers.map((invoice) => invoice.number)].filter(Boolean)
   if (new Set(numbers).size !== numbers.length) {
     throw new Error('Das Backup enthält doppelte Rechnungsnummern.')
   }
-  return { ...emptyState(), ...data, updatedAt: new Date().toISOString() }
+  return { ...emptyState(), ...data, voidedInvoiceNumbers, updatedAt: new Date().toISOString() }
 }
 
 function openHandleDb(): Promise<IDBDatabase> {

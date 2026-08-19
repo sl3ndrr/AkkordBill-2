@@ -75,7 +75,10 @@ export function nextInvoiceAllocation(state: AppState, invoiceDate: string): { n
   const counterKey = state.settings.resetNumberAnnually ? String(year) : 'global'
   let sequence = Math.max(1, state.counters[counterKey] ?? 1)
   let candidate = formatInvoiceNumber(state.settings, sequence, year)
-  const used = new Set(state.invoices.map((invoice) => invoice.number).filter(Boolean))
+  const used = new Set([
+    ...state.invoices.map((invoice) => invoice.number),
+    ...state.voidedInvoiceNumbers.map((invoice) => invoice.number),
+  ].filter(Boolean))
   while (used.has(candidate)) {
     sequence += 1
     candidate = formatInvoiceNumber(state.settings, sequence, year)

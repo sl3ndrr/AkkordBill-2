@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Calendar, CircleDollarSign, Plus, Send, Trash2 } from 'lucide-react'
+import { Calendar, CircleDollarSign, FileCheck2, Plus, Save, Send, Trash2 } from 'lucide-react'
 import type { Guardian, InvoiceDraft, Settings, Student } from '../types'
 import { Modal } from '../components/Modal'
 import { euro, itemTotal, uid } from '../lib/utils'
@@ -11,11 +11,13 @@ interface InvoiceEditorProps {
   students: Student[]
   settings: Settings
   editing: boolean
+  finalized: boolean
+  invoiceNumber?: string | null
   onClose: () => void
   onSave: (draft: InvoiceDraft, finalize: boolean) => void
 }
 
-export function InvoiceEditor({ open, draft, guardians, students, settings, editing, onClose, onSave }: InvoiceEditorProps) {
+export function InvoiceEditor({ open, draft, guardians, students, settings, editing, finalized, invoiceNumber, onClose, onSave }: InvoiceEditorProps) {
   const [form, setForm] = useState<InvoiceDraft>(draft)
   const [errors, setErrors] = useState<string[]>([])
 
@@ -61,33 +63,37 @@ export function InvoiceEditor({ open, draft, guardians, students, settings, edit
     if (!form.items.length) nextErrors.push('Mindestens eine Position ergänzen.')
     if (form.items.some((item) => !item.description.trim() || item.quantity <= 0 || item.unitPrice < 0)) nextErrors.push('Alle Positionen vollständig und mit gültigen Werten ausfüllen.')
     setErrors(nextErrors)
-    if (!nextErrors.length) onSave(form, finalize)
+    if (!nextErrors.length) onSave(finalized ? { ...form, recipientStrategy: 'joint' } : form, finalize)
   }
 
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title={editing ? 'Entwurf bearbeiten' : 'Neue Rechnung'}
+      title={finalized ? `Rechnung ${invoiceNumber ?? ''} bearbeiten` : editing ? 'Entwurf bearbeiten' : 'Neue Rechnung'}
       eyebrow="Rechnungseditor"
       size="large"
       footer={
         <>
           <div className="modal-total"><span>Gesamt</span><strong>{euro.format(total)}</strong></div>
           <button className="button button--text" type="button" onClick={onClose}>Abbrechen</button>
-          <button className="button button--tonal" type="button" onClick={() => submit(false)}>Als Entwurf speichern</button>
-          <button className="button button--primary" type="button" onClick={() => submit(true)}><Send aria-hidden="true" /> Finalisieren</button>
+          {finalized ? (
+            <button className="button button--primary" type="button" onClick={() => submit(false)}><Save aria-hidden="true" /> Änderungen speichern</button>
+          ) : (
+            <><button className="button button--tonal" type="button" onClick={() => submit(false)}>Als Entwurf speichern</button><button className="button button--primary" type="button" onClick={() => submit(true)}><Send aria-hidden="true" /> Finalisieren</button></>
+          )}
         </>
       }
     >
       <form className="invoice-form" onSubmit={(event) => event.preventDefault()}>
+        {finalized && <div className="revision-banner"><FileCheck2 aria-hidden="true" /><div><strong>Finalisierte Rechnung</strong><p>Die Rechnungsnummer bleibt erhalten. Änderungen werden im lokalen Verlauf protokolliert und die Druckansicht wird aktualisiert.</p></div></div>}
         {errors.length > 0 && <div className="form-errors" role="alert"><strong>Bitte noch prüfen:</strong><ul>{errors.map((error) => <li key={error}>{error}</li>)}</ul></div>}
 
         <section className="form-section">
           <div className="form-section__heading"><span>1</span><div><h3>Für wen?</h3><p>Kinder und Rechnungsempfänger auswählen.</p></div></div>
           <fieldset className="chip-fieldset"><legend>Kind(er)</legend><div className="choice-chips">{students.filter((student) => student.active).map((student) => <label className={form.studentIds.includes(student.id) ? 'choice-chip is-selected' : 'choice-chip'} key={student.id}><input type="checkbox" checked={form.studentIds.includes(student.id)} onChange={() => selectStudent(student)} /><span className="avatar">{student.name.slice(0, 1)}</span>{student.name}</label>)}</div>{!students.length && <p className="field-hint field-hint--warning">Lege zuerst unter „Familien“ ein Kind an.</p>}</fieldset>
           <fieldset className="chip-fieldset"><legend>Empfänger</legend><div className="choice-chips">{eligibleGuardians.map((guardian) => <label className={form.guardianIds.includes(guardian.id) ? 'choice-chip is-selected' : 'choice-chip'} key={guardian.id}><input type="checkbox" checked={form.guardianIds.includes(guardian.id)} onChange={() => setForm((current) => ({ ...current, guardianIds: current.guardianIds.includes(guardian.id) ? current.guardianIds.filter((id) => id !== guardian.id) : [...current.guardianIds, guardian.id] }))} /><span className="avatar avatar--warm">{guardian.name.slice(0, 1)}</span>{guardian.name}</label>)}</div></fieldset>
-          {form.guardianIds.length > 1 && <fieldset className="segmented-field"><legend>Bei mehreren Empfänger:innen</legend><div className="segmented-control"><label className={form.recipientStrategy === 'joint' ? 'is-selected' : ''}><input type="radio" name="recipient-strategy" checked={form.recipientStrategy === 'joint'} onChange={() => setForm({ ...form, recipientStrategy: 'joint' })} />Eine gemeinsame Rechnung</label><label className={form.recipientStrategy === 'separate' ? 'is-selected' : ''}><input type="radio" name="recipient-strategy" checked={form.recipientStrategy === 'separate'} onChange={() => setForm({ ...form, recipientStrategy: 'separate' })} />Je Person eine Rechnung</label></div><p className="field-hint">Bei getrennten Rechnungen entstehen eigenständige Entwürfe bzw. fortlaufende Nummern.</p></fieldset>}
+          {form.guardianIds.length > 1 && (finalized ? <p className="field-hint">Die vorhandene Rechnungsnummer bleibt eine gemeinsame Rechnung für die ausgewählten Empfänger:innen.</p> : <fieldset className="segmented-field"><legend>Bei mehreren Empfänger:innen</legend><div className="segmented-control"><label className={form.recipientStrategy === 'joint' ? 'is-selected' : ''}><input type="radio" name="recipient-strategy" checked={form.recipientStrategy === 'joint'} onChange={() => setForm({ ...form, recipientStrategy: 'joint' })} />Eine gemeinsame Rechnung</label><label className={form.recipientStrategy === 'separate' ? 'is-selected' : ''}><input type="radio" name="recipient-strategy" checked={form.recipientStrategy === 'separate'} onChange={() => setForm({ ...form, recipientStrategy: 'separate' })} />Je Person eine Rechnung</label></div><p className="field-hint">Bei getrennten Rechnungen entstehen eigenständige Entwürfe bzw. fortlaufende Nummern.</p></fieldset>)}
         </section>
 
         <section className="form-section">

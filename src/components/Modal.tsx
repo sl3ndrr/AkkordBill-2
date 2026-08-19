@@ -1,4 +1,5 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
 interface ModalProps {
@@ -14,6 +15,9 @@ interface ModalProps {
 export function Modal({ open, title, eyebrow, onClose, children, footer, size = 'medium' }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const previousFocus = useRef<HTMLElement | null>(null)
+  const onCloseRef = useRef(onClose)
+  const titleId = useId()
+  onCloseRef.current = onClose
 
   useEffect(() => {
     if (!open) return
@@ -23,7 +27,7 @@ export function Modal({ open, title, eyebrow, onClose, children, footer, size = 
       focusTarget?.focus()
     })
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
+      if (event.key === 'Escape') onCloseRef.current()
       if (event.key !== 'Tab' || !dialogRef.current) return
       const focusable = [...dialogRef.current.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')]
         .filter((element) => !element.hasAttribute('disabled'))
@@ -46,17 +50,17 @@ export function Modal({ open, title, eyebrow, onClose, children, footer, size = 
       document.body.classList.remove('modal-open')
       previousFocus.current?.focus()
     }
-  }, [open, onClose])
+  }, [open])
 
   if (!open) return null
 
-  return (
-    <div className="modal-layer" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <div ref={dialogRef} className={`modal modal--${size}`} role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  return createPortal(
+    <div className="modal-layer" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onCloseRef.current()}>
+      <div ref={dialogRef} className={`modal modal--${size}`} role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <header className="modal__header">
           <div>
             {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-            <h2 id="modal-title">{title}</h2>
+            <h2 id={titleId}>{title}</h2>
           </div>
           <button className="icon-button" type="button" onClick={onClose} aria-label="Dialog schließen">
             <X aria-hidden="true" />
@@ -65,6 +69,7 @@ export function Modal({ open, title, eyebrow, onClose, children, footer, size = 
         <div className="modal__body">{children}</div>
         {footer && <footer className="modal__footer">{footer}</footer>}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

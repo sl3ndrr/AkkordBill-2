@@ -34,6 +34,9 @@ export function People({ state, onSaveGuardian, onSaveStudent, onDeleteGuardian,
   const students = useMemo(() => state.students.filter((student) => !needle || `${student.name} ${student.note} ${student.guardianIds.map((id) => state.guardians.find((guardian) => guardian.id === id)?.name).join(' ')}`.toLocaleLowerCase('de-DE').includes(needle)), [needle, state.guardians, state.students])
   const guardians = useMemo(() => state.guardians.filter((guardian) => !needle || `${guardian.name} ${guardian.email} ${guardian.address.city}`.toLocaleLowerCase('de-DE').includes(needle)), [needle, state.guardians])
 
+  const closeGuardianForm = () => { setGuardianForm(null); setError('') }
+  const closeStudentForm = () => { setStudentForm(null); setError('') }
+
   const saveGuardian = () => {
     if (!guardianForm?.name.trim()) return setError('Bitte einen Namen eintragen.')
     if (guardianForm.email && !/^\S+@\S+\.\S+$/.test(guardianForm.email)) return setError('Bitte die E-Mail-Adresse prüfen.')
@@ -100,14 +103,14 @@ export function People({ state, onSaveGuardian, onSaveStudent, onDeleteGuardian,
         </div>
       )}
 
-      <Modal open={Boolean(guardianForm)} onClose={() => { setGuardianForm(null); setError('') }} title={state.guardians.some((item) => item.id === guardianForm?.id) ? 'Elternteil bearbeiten' : 'Elternteil anlegen'} eyebrow="Erziehungsberechtigte Person" footer={<><button className="button button--text" onClick={() => setGuardianForm(null)}>Abbrechen</button><button className="button button--primary" onClick={saveGuardian}>Speichern</button></>}>
+      <Modal open={Boolean(guardianForm)} onClose={closeGuardianForm} title={state.guardians.some((item) => item.id === guardianForm?.id) ? 'Elternteil bearbeiten' : 'Elternteil anlegen'} eyebrow="Erziehungsberechtigte Person" footer={<><button className="button button--text" onClick={closeGuardianForm}>Abbrechen</button><button className="button button--primary" onClick={saveGuardian}>Speichern</button></>}>
         {guardianForm && <form className="form-stack" onSubmit={(event) => { event.preventDefault(); saveGuardian() }}>
           {error && <p className="inline-error" role="alert">{error}</p>}
           <div className="form-grid form-grid--2"><label className="field field--full"><span>Name *</span><input autoFocus value={guardianForm.name} onChange={(event) => setGuardianForm({ ...guardianForm, name: event.target.value })} placeholder="Vor- und Nachname" /></label><label className="field"><span>E-Mail</span><input type="email" value={guardianForm.email} onChange={(event) => setGuardianForm({ ...guardianForm, email: event.target.value })} /></label><label className="field"><span>Telefon</span><input type="tel" value={guardianForm.phone} onChange={(event) => setGuardianForm({ ...guardianForm, phone: event.target.value })} /></label><label className="field field--full"><span>Straße & Hausnummer</span><input value={guardianForm.address.street} onChange={(event) => setGuardianForm({ ...guardianForm, address: { ...guardianForm.address, street: event.target.value } })} /></label><label className="field"><span>PLZ</span><input inputMode="numeric" value={guardianForm.address.postalCode} onChange={(event) => setGuardianForm({ ...guardianForm, address: { ...guardianForm.address, postalCode: event.target.value } })} /></label><label className="field"><span>Ort</span><input value={guardianForm.address.city} onChange={(event) => setGuardianForm({ ...guardianForm, address: { ...guardianForm.address, city: event.target.value } })} /></label><label className="field field--full"><span>IBAN / Zahlungsinfo (optional)</span><input value={guardianForm.iban} onChange={(event) => setGuardianForm({ ...guardianForm, iban: event.target.value })} placeholder="Nur falls für interne Zuordnung benötigt" /></label><label className="field field--full"><span>Interne Notiz</span><textarea rows={2} value={guardianForm.paymentNote} onChange={(event) => setGuardianForm({ ...guardianForm, paymentNote: event.target.value })} /></label></div>
         </form>}
       </Modal>
 
-      <Modal open={Boolean(studentForm)} onClose={() => { setStudentForm(null); setError('') }} title={state.students.some((item) => item.id === studentForm?.id) ? 'Kind bearbeiten' : 'Kind anlegen'} eyebrow="Schüler:in" footer={<><button className="button button--text" onClick={() => setStudentForm(null)}>Abbrechen</button><button className="button button--primary" onClick={saveStudent}>Speichern</button></>}>
+      <Modal open={Boolean(studentForm)} onClose={closeStudentForm} title={state.students.some((item) => item.id === studentForm?.id) ? 'Kind bearbeiten' : 'Kind anlegen'} eyebrow="Schüler:in" footer={<><button className="button button--text" onClick={closeStudentForm}>Abbrechen</button><button className="button button--primary" onClick={saveStudent}>Speichern</button></>}>
         {studentForm && <form className="form-stack" onSubmit={(event) => { event.preventDefault(); saveStudent() }}>
           {error && <p className="inline-error" role="alert">{error}</p>}
           <label className="field"><span>Name *</span><input autoFocus value={studentForm.name} onChange={(event) => setStudentForm({ ...studentForm, name: event.target.value })} /></label>

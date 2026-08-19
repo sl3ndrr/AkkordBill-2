@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { CalendarDays, Check, ChevronDown, Copy, Download, Edit3, FilePlus2, Mail, MoreHorizontal, Printer, Search, Send, Trash2 } from 'lucide-react'
+import { CalendarDays, ChevronDown, Copy, Download, Edit3, FilePlus2, Mail, MoreHorizontal, Printer, Search, Send, Trash2 } from 'lucide-react'
 import type { AppState, Invoice, InvoiceStatus } from '../types'
 import { EmptyState } from '../components/EmptyState'
 import { createReminder, effectiveStatus, euro, formatDate, formatDateLong, guardianName, invoiceTotal, mailtoUrl, statusLabel, studentName } from '../lib/utils'
@@ -143,10 +143,9 @@ function InvoiceDetail({ invoice, state, onClose, onEdit, onDuplicate, onDelete,
         {invoice.status === 'draft' ? (
           <><button className="button button--primary" onClick={() => onSetStatus('sent')}><Send aria-hidden="true" /> Finalisieren</button><button className="button button--tonal" onClick={onEdit}><Edit3 aria-hidden="true" /> Bearbeiten</button></>
         ) : (
-          <button className="button button--primary" onClick={onPrint}><Printer aria-hidden="true" /> PDF / Drucken</button>
+          <><button className="button button--primary" onClick={onPrint}><Printer aria-hidden="true" /> PDF / Drucken</button><button className="button button--tonal" onClick={onEdit}><Edit3 aria-hidden="true" /> Rechnung bearbeiten</button></>
         )}
-        {status !== 'paid' && invoice.status !== 'draft' && <button className="button button--tonal" onClick={() => onSetStatus('paid')}><Check aria-hidden="true" /> Als bezahlt markieren</button>}
-        {status === 'paid' && <button className="button button--tonal" onClick={() => onSetStatus('sent')}>Zahlung zurücknehmen</button>}
+        {invoice.status !== 'draft' && <label className="status-editor"><span>Status</span><div><select value={status} onChange={(event) => onSetStatus(event.target.value as InvoiceStatus)}><option value="sent">Versendet / offen</option><option value="paid">Bezahlt</option><option value="overdue">Überfällig</option></select><ChevronDown aria-hidden="true" /></div></label>}
       </div>
 
       {canRemind && (
@@ -163,7 +162,7 @@ function InvoiceDetail({ invoice, state, onClose, onEdit, onDuplicate, onDelete,
 
       <footer className="invoice-detail__footer">
         <button className="button button--text" onClick={onDuplicate}><Copy aria-hidden="true" /> Duplizieren</button>
-        {invoice.status === 'draft' && <button className="button button--text button--danger-text" onClick={onDelete}><Trash2 aria-hidden="true" /> Löschen</button>}
+        <button className="button button--text button--danger-text" onClick={onDelete}><Trash2 aria-hidden="true" /> Löschen</button>
         {invoice.status !== 'draft' && <button className="button button--text" onClick={onPrint}><Download aria-hidden="true" /> Vorschau</button>}
       </footer>
     </aside>

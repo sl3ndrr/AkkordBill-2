@@ -12,7 +12,7 @@ import { ToastRegion } from './components/ToastRegion'
 import { InvoicePrint } from './components/InvoicePrint'
 import { createDemoState, createEmptyInvoiceDraft, emptyState } from './lib/defaults'
 import { clearDirectoryHandle, ensureWritePermission, loadState, parseBackup, readDirectoryHandle, saveState, serializeBackup, storeDirectoryHandle, writeBackupToDirectory } from './lib/storage'
-import { downloadText, nextInvoiceAllocation, parseDate, uid } from './lib/utils'
+import { downloadText, guardianName, nextInvoiceAllocation, parseDate, statusLabel, uid } from './lib/utils'
 
 const navItems: Array<{ key: PageKey; label: string; icon: typeof LayoutDashboard }> = [
   { key: 'dashboard', label: 'Übersicht', icon: LayoutDashboard },
@@ -30,12 +30,20 @@ interface Confirmation {
   action: () => void
 }
 
+interface InvoiceEditorState {
+  open: boolean
+  draft: InvoiceDraft
+  editing: boolean
+  finalized: boolean
+  invoiceNumber: string | null
+}
+
 function App() {
   const [state, setState] = useState<AppState>(loadState)
   const [page, setPage] = useState<PageKey>('dashboard')
   const [mobileNav, setMobileNav] = useState(false)
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null)
-  const [editor, setEditor] = useState<{ open: boolean; draft: InvoiceDraft; editing: boolean }>({ open: false, draft: createEmptyInvoiceDraft(state.settings), editing: false })
+  const [editor, setEditor] = useState<InvoiceEditorState>({ open: false, draft: createEmptyInvoiceDraft(state.settings), editing: false, finalized: false, invoiceNumber: null })
   const [printInvoice, setPrintInvoice] = useState<Invoice | null>(null)
   const [toasts, setToasts] = useState<ToastMessage[]>([])
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
@@ -116,7 +124,7 @@ function App() {
       toast('Lege zuerst ein Kind mit einer erziehungsberechtigten Person an.', 'info')
       return
     }
-    setEditor({ open: true, draft: createEmptyInvoiceDraft(state.settings), editing: false })
+    setEditor({ open: true, draft: createEmptyInvoiceDraft(state.settings), editing: false, finalized: false, invoiceNumber: null })
   }, [state.settings, state.students.length, toast])
 
   useEffect(() => {
@@ -138,10 +146,11 @@ function App() {
   }, [openNewInvoice])
 
   const editInvoice = (invoice: Invoice) => {
-    if (invoice.status !== 'draft') return
     setEditor({
       open: true,
       editing: true,
+      finalized: Boolean(invoice.number),
+      invoiceNumber: invoice.number,
       draft: {
         id: invoice.id,
         invoiceDate: invoice.invoiceDate,
@@ -178,6 +187,50 @@ function App() {
   const saveInvoice = (draft: InvoiceDraft, finalize: boolean) => {
     const now = new Date().toISOString()
     const existing = draft.id ? state.invoices.find((invoice) => invoice.id === draft.id) : undefined
+    if (existing?.number) {
+      commit((current) => {
+        const currentExisting = current.invoices.find((invoice) => invoice.id === existing.id)
+        if (!currentExisting) return current
+        const freshSnapshot = snapshotFor(current, draft.guardianIds, draft.studentIds, draft.legalText)
+        const previousSnapshot = currentExisting.snapshot
+        const revisedSnapshot: InvoiceSnapshot = {
+          ...(previousSnapshot ?? freshSnapshot),
+          guardians: draft.guardianIds.flatMap((id) => {
+            const guardian = freshSnapshot.guardians.find((item) => item.id === id) ?? previousSnapshot?.guardians.find((item) => item.id === id)
+            return guardian ? [guardian] : []
+          }),
+          students: draft.studentIds.flatMap((id) => {
+            const student = freshSnapshot.students.find((item) => item.id === id) ?? previousSnapshot?.students.find((item) => item.id === id)
+            return student ? [student] : []
+          }),
+          legalText: draft.legalText,
+        }
+        return {
+          ...current,
+          invoices: current.invoices.map((invoice) => invoice.id === currentExisting.id ? {
+            ...invoice,
+            year: parseDate(draft.invoiceDate).getFullYear(),
+            invoiceDate: draft.invoiceDate,
+            dueDate: draft.dueDate,
+            period: draft.period,
+            guardianIds: draft.guardianIds,
+            studentIds: draft.studentIds,
+            recipientStrategy: 'joint',
+            items: structuredClone(draft.items),
+            introText: draft.introText,
+            freeText: draft.freeText,
+            legalText: draft.legalText,
+            snapshot: revisedSnapshot,
+            updatedAt: now,
+          } : invoice),
+        }
+      }, `Finalisierte Rechnung ${existing.number} bearbeitet`, 'invoice', existing.id)
+      setEditor((current) => ({ ...current, open: false }))
+      setPage('invoices')
+      setSelectedInvoiceId(existing.id)
+      toast(`Rechnung ${existing.number} aktualisiert.`, 'success')
+      return
+    }
     const recipientGroups = draft.recipientStrategy === 'separate' && draft.guardianIds.length > 1 ? draft.guardianIds.map((id) => [id]) : [draft.guardianIds]
     const createdIds = recipientGroups.map((_group, index) => index === 0 && existing ? existing.id : uid('invoice'))
     commit((current) => {
@@ -254,7 +307,7 @@ function App() {
         }
       })
       return { ...current, invoices, counters }
-    }, status === 'paid' ? 'Rechnung als bezahlt markiert' : status === 'sent' ? 'Rechnung als versendet markiert' : `Status auf ${status} gesetzt`, 'invoice', invoice.id)
+    }, status === 'paid' ? 'Rechnung als bezahlt markiert' : status === 'sent' ? 'Rechnung als versendet markiert' : `Rechnungsstatus auf ${statusLabel[status]} gesetzt`, 'invoice', invoice.id)
     toast(allocatedNumber ? `Rechnung ${allocatedNumber} finalisiert.` : 'Status aktualisiert.', 'success')
   }
 
@@ -269,7 +322,7 @@ function App() {
       date.setMonth(date.getMonth() + monthDelta)
       return date.toISOString().slice(0, 10)
     }
-    setEditor({ open: true, editing: false, draft: {
+    setEditor({ open: true, editing: false, finalized: false, invoiceNumber: null, draft: {
       invoiceDate: targetDate.toISOString().slice(0, 10),
       dueDate: dueDate.toISOString().slice(0, 10),
       period: new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(targetDate),
@@ -284,13 +337,27 @@ function App() {
   }
 
   const requestDeleteInvoice = (invoice: Invoice) => setConfirmation({
-    title: 'Entwurf löschen?',
-    message: 'Der Entwurf und seine Positionen werden dauerhaft aus diesem Browser entfernt. Es wurde noch keine Rechnungsnummer verbraucht.',
-    label: 'Entwurf löschen', danger: true,
+    title: invoice.number ? `Rechnung ${invoice.number} löschen?` : 'Entwurf löschen?',
+    message: invoice.number
+      ? 'Der Beleg wird aus der Rechnungsliste entfernt. Seine Rechnungsnummer bleibt im Nummernregister dauerhaft reserviert und wird nicht erneut vergeben.'
+      : 'Der Entwurf und seine Positionen werden dauerhaft aus diesem Browser entfernt. Es wurde noch keine Rechnungsnummer verbraucht.',
+    label: invoice.number ? 'Rechnung löschen' : 'Entwurf löschen', danger: true,
     action: () => {
-      commit((current) => ({ ...current, invoices: current.invoices.filter((item) => item.id !== invoice.id) }), 'Rechnungsentwurf gelöscht', 'invoice', invoice.id)
+      commit((current) => ({
+        ...current,
+        invoices: current.invoices.filter((item) => item.id !== invoice.id),
+        voidedInvoiceNumbers: invoice.number ? [{
+          number: invoice.number,
+          sequence: invoice.sequence,
+          year: invoice.year,
+          invoiceDate: invoice.invoiceDate,
+          deletedAt: new Date().toISOString(),
+          amount: invoice.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0),
+          recipient: guardianName(invoice, current.guardians),
+        }, ...current.voidedInvoiceNumbers] : current.voidedInvoiceNumbers,
+      }), invoice.number ? `Finalisierte Rechnung ${invoice.number} gelöscht; Nummer reserviert` : 'Rechnungsentwurf gelöscht', 'invoice', invoice.id)
       setSelectedInvoiceId(null)
-      toast('Entwurf gelöscht.', 'success')
+      toast(invoice.number ? `Rechnung ${invoice.number} gelöscht; Nummer bleibt reserviert.` : 'Entwurf gelöscht.', 'success')
     },
   })
 
@@ -450,7 +517,7 @@ function App() {
 
       <nav className="mobile-bottom-nav" aria-label="Mobile Hauptnavigation">{navItems.slice(0, 4).map(({ key, label, icon: Icon }) => <button className={page === key ? 'is-active' : ''} aria-current={page === key ? 'page' : undefined} key={key} onClick={() => setCurrentPage(key)}><Icon aria-hidden="true" /><span>{label}</span></button>)}</nav>
 
-      <InvoiceEditor open={editor.open} draft={editor.draft} editing={editor.editing} guardians={state.guardians} students={state.students} settings={state.settings} onClose={() => setEditor((current) => ({ ...current, open: false }))} onSave={saveInvoice} />
+      <InvoiceEditor open={editor.open} draft={editor.draft} editing={editor.editing} finalized={editor.finalized} invoiceNumber={editor.invoiceNumber} guardians={state.guardians} students={state.students} settings={state.settings} onClose={() => setEditor((current) => ({ ...current, open: false }))} onSave={saveInvoice} />
       <ConfirmDialog open={Boolean(confirmation)} title={confirmation?.title ?? ''} message={confirmation?.message ?? ''} confirmLabel={confirmation?.label} danger={confirmation?.danger} onCancel={() => setConfirmation(null)} onConfirm={() => { const action = confirmation?.action; setConfirmation(null); action?.() }} />
       <ToastRegion messages={toasts} onDismiss={(id) => setToasts((current) => current.filter((item) => item.id !== id))} />
       <div className="print-root"><InvoicePrint invoice={printInvoice} guardians={state.guardians} students={state.students} settings={state.settings} /></div>
