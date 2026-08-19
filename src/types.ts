@@ -24,6 +24,7 @@ export interface Guardian {
 export interface Student {
   id: string
   name: string
+  billingCode: string
   guardianIds: string[]
   note: string
   active: boolean
@@ -134,6 +135,7 @@ export interface AppState {
   voidedInvoiceNumbers: VoidedInvoiceNumber[]
   settings: Settings
   counters: Record<string, number>
+  nextStudentCodeIndex: number
   audit: AuditEvent[]
   updatedAt: string
 }

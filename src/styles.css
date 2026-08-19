@@ -151,6 +151,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .sidebar__privacy small { max-width: 145px; color: var(--on-surface-variant); font-size: 10px; line-height: 1.35; }
 .shield-dot { position: relative; display: block; width: 19px; height: 22px; border: 2px solid var(--success); border-radius: 9px 9px 12px 12px; }
 .shield-dot::before { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: var(--success); content: ''; inset: 6px auto auto 5px; }
+.sidebar__version { margin: 10px 12px 0; color: var(--outline); font-size: 9px; font-weight: 650; letter-spacing: .05em; }
 .sidebar__help { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 12px; border: 0; background: transparent; color: var(--on-surface-variant); font-size: 12px; cursor: pointer; }
 .sidebar__help:hover { color: var(--primary); }
 
@@ -326,6 +327,8 @@ kbd { display: inline-flex; min-width: 24px; height: 24px; margin-left: auto; al
 @keyframes card-in { from { opacity: 0; transform: translateY(12px); } }
 .student-card:hover { transform: translateY(-3px); border-radius: 20px 32px 20px 32px; box-shadow: var(--shadow-2); }
 .student-card header { display: flex; align-items: flex-start; justify-content: space-between; }
+.student-card__meta { display: flex; align-items: center; gap: 10px; }
+.student-code { display: grid; min-width: 27px; height: 27px; place-items: center; padding-inline: 8px; border-radius: var(--radius-full); background: var(--primary-container); color: var(--on-primary-container); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; font-weight: 780; text-transform: lowercase; }
 .student-card h3 { margin: 21px 0 5px; font-size: 21px; letter-spacing: -.025em; }
 .student-card > p { margin-bottom: 18px; color: var(--on-surface-variant); font-size: 11px; }
 .student-card__guardians { display: grid; gap: 7px; }
@@ -334,6 +337,13 @@ kbd { display: inline-flex; min-width: 24px; height: 24px; margin-left: auto; al
 .student-card footer { display: flex; align-items: center; justify-content: space-between; margin-top: auto; padding-top: 20px; }
 .active-dot { width: 10px; height: 10px; border: 2px solid var(--surface-container-lowest); border-radius: 50%; background: var(--success); box-shadow: 0 0 0 2px var(--success-container); }
 .active-dot--muted { background: var(--outline); box-shadow: 0 0 0 2px var(--surface-container); }
+.student-code-note { display: flex; align-items: center; gap: 12px; padding: 13px 15px; border-radius: var(--radius-md); background: var(--primary-container); color: var(--on-primary-container); }
+.student-code-note > span { display: grid; width: 38px; height: 38px; flex: 0 0 auto; place-items: center; border-radius: 14px; background: color-mix(in srgb, var(--on-primary-container) 11%, transparent); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 17px; font-weight: 780; text-transform: lowercase; }
+.student-code-note > div { display: grid; gap: 3px; }
+.student-code-note strong { font-size: 11px; }
+.student-code-note small { font-size: 9px; line-height: 1.4; opacity: .78; }
+.chip-fieldset:disabled { opacity: 1; }
+.chip-fieldset:disabled .choice-chip { cursor: default; }
 .avatar { display: inline-grid; width: 32px; height: 32px; flex: 0 0 auto; place-items: center; border-radius: 12px 12px 16px 12px; background: var(--primary-container); color: var(--on-primary-container); font-size: 12px; font-weight: 750; }
 .avatar--large { width: 52px; height: 52px; border-radius: 17px 17px 24px 17px; font-size: 19px; }
 .avatar--warm { background: var(--tertiary-container); color: var(--on-tertiary-container); }
@@ -612,7 +622,7 @@ kbd { display: inline-flex; min-width: 24px; height: 24px; margin-left: auto; al
 @media (max-width: 1120px) {
   .sidebar { width: 88px; align-items: center; padding-inline: 10px; }
   .brand { padding-inline: 0; }
-  .brand > div, .sidebar nav button span, .sidebar nav button b, .sidebar__privacy div, .sidebar__help { display: none; }
+  .brand > div, .sidebar nav button span, .sidebar nav button b, .sidebar__privacy div, .sidebar__version, .sidebar__help { display: none; }
   .sidebar nav button { width: 56px; padding: 0; justify-content: center; }
   .sidebar__privacy { padding: 10px; }
   .app-main { margin-left: 88px; }
@@ -632,6 +642,7 @@ kbd { display: inline-flex; min-width: 24px; height: 24px; margin-left: auto; al
   .brand .mobile-only { margin-left: auto; }
   .sidebar nav button { width: 100%; padding: 0 16px; justify-content: flex-start; }
   .sidebar__privacy { padding: 14px 12px; }
+  .sidebar__version { display: block; }
   .sidebar__help { display: flex; }
   .nav-scrim { position: fixed; z-index: 70; inset: 0; border: 0; background: var(--scrim); animation: fade-in var(--motion-normal) both; }
   .app-main { margin-left: 0; }

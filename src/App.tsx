@@ -12,7 +12,8 @@ import { ToastRegion } from './components/ToastRegion'
 import { InvoicePrint } from './components/InvoicePrint'
 import { createDemoState, createEmptyInvoiceDraft, emptyState } from './lib/defaults'
 import { clearDirectoryHandle, ensureWritePermission, loadState, parseBackup, readDirectoryHandle, saveState, serializeBackup, storeDirectoryHandle, writeBackupToDirectory } from './lib/storage'
-import { downloadText, guardianName, nextInvoiceAllocation, parseDate, statusLabel, uid } from './lib/utils'
+import { downloadText, ensureStudentCodePattern, guardianName, nextInvoiceAllocation, parseDate, statusLabel, studentCodeForIndex, uid } from './lib/utils'
+import { APP_VERSION } from './version'
 
 const navItems: Array<{ key: PageKey; label: string; icon: typeof LayoutDashboard }> = [
   { key: 'dashboard', label: 'Übersicht', icon: LayoutDashboard },
@@ -191,7 +192,8 @@ function App() {
       commit((current) => {
         const currentExisting = current.invoices.find((invoice) => invoice.id === existing.id)
         if (!currentExisting) return current
-        const freshSnapshot = snapshotFor(current, draft.guardianIds, draft.studentIds, draft.legalText)
+        const preservedStudentIds = currentExisting.studentIds
+        const freshSnapshot = snapshotFor(current, draft.guardianIds, preservedStudentIds, draft.legalText)
         const previousSnapshot = currentExisting.snapshot
         const revisedSnapshot: InvoiceSnapshot = {
           ...(previousSnapshot ?? freshSnapshot),
@@ -199,7 +201,7 @@ function App() {
             const guardian = freshSnapshot.guardians.find((item) => item.id === id) ?? previousSnapshot?.guardians.find((item) => item.id === id)
             return guardian ? [guardian] : []
           }),
-          students: draft.studentIds.flatMap((id) => {
+          students: preservedStudentIds.flatMap((id) => {
             const student = freshSnapshot.students.find((item) => item.id === id) ?? previousSnapshot?.students.find((item) => item.id === id)
             return student ? [student] : []
           }),
@@ -214,7 +216,7 @@ function App() {
             dueDate: draft.dueDate,
             period: draft.period,
             guardianIds: draft.guardianIds,
-            studentIds: draft.studentIds,
+            studentIds: preservedStudentIds,
             recipientStrategy: 'joint',
             items: structuredClone(draft.items),
             introText: draft.introText,
@@ -258,7 +260,7 @@ function App() {
           updatedAt: now,
         }
         if (finalize) {
-          const allocation = nextInvoiceAllocation(working, draft.invoiceDate)
+          const allocation = nextInvoiceAllocation(working, draft.invoiceDate, draft.studentIds)
           base.number = allocation.number
           base.sequence = allocation.sequence
           base.status = 'sent'
@@ -284,7 +286,7 @@ function App() {
         if (candidate.id !== invoice.id) return candidate
         const now = new Date().toISOString()
         if (candidate.status === 'draft' && status !== 'draft') {
-          const allocation = nextInvoiceAllocation(current, candidate.invoiceDate)
+          const allocation = nextInvoiceAllocation(current, candidate.invoiceDate, candidate.studentIds)
           allocatedNumber = allocation.number
           counters = { ...counters, [allocation.counterKey]: allocation.sequence + 1 }
           return {
@@ -369,7 +371,18 @@ function App() {
 
   const saveStudent = (student: Student) => {
     const exists = state.students.some((item) => item.id === student.id)
-    commit((current) => ({ ...current, students: exists ? current.students.map((item) => item.id === student.id ? student : item) : [...current.students, student] }), exists ? 'Kind aktualisiert' : 'Kind angelegt', 'person', student.id)
+    commit((current) => {
+      const existing = current.students.find((item) => item.id === student.id)
+      if (existing) {
+        return { ...current, students: current.students.map((item) => item.id === student.id ? { ...student, billingCode: existing.billingCode } : item) }
+      }
+      const billingCode = studentCodeForIndex(current.nextStudentCodeIndex)
+      return {
+        ...current,
+        students: [...current.students, { ...student, billingCode }],
+        nextStudentCodeIndex: current.nextStudentCodeIndex + 1,
+      }
+    }, exists ? 'Kind aktualisiert' : 'Kind angelegt', 'person', student.id)
     toast(exists ? 'Kind aktualisiert.' : 'Kind angelegt.', 'success')
   }
 
@@ -479,7 +492,10 @@ function App() {
     },
   })
 
-  const saveSettings = (settings: SettingsType) => commit((current) => ({ ...current, settings }), 'Einstellungen aktualisiert', 'settings')
+  const saveSettings = (settings: SettingsType) => commit((current) => ({
+    ...current,
+    settings: { ...settings, numberPattern: ensureStudentCodePattern(settings.numberPattern) },
+  }), 'Einstellungen aktualisiert', 'settings')
   const loadDemo = () => {
     setState(createDemoState())
     toast('Beispieldaten geladen. Du kannst sie jederzeit zurücksetzen.', 'success')
@@ -495,6 +511,7 @@ function App() {
         <div className="brand"><span className="brand__mark"><span /><span /><span /></span><div><strong>Saitenweise</strong><small>Rechnungen</small></div><button className="icon-button mobile-only" onClick={() => setMobileNav(false)} aria-label="Navigation schließen"><X aria-hidden="true" /></button></div>
         <nav aria-label="Hauptnavigation">{navItems.map(({ key, label, icon: Icon }) => <button className={page === key ? 'is-active' : ''} aria-current={page === key ? 'page' : undefined} key={key} onClick={() => setCurrentPage(key)}><Icon aria-hidden="true" /><span>{label}</span>{key === 'invoices' && state.invoices.filter((invoice) => invoice.status === 'draft').length > 0 && <b>{state.invoices.filter((invoice) => invoice.status === 'draft').length}</b>}</button>)}</nav>
         <div className="sidebar__privacy"><span><ShieldDot /></span><div><strong>Nur auf diesem Gerät</strong><small>Keine automatische Cloud-Übertragung</small></div></div>
+        <span className="sidebar__version">Version {APP_VERSION}</span>
         <button className="sidebar__help" onClick={() => toast('Tastatur: N = neue Rechnung, / = Suche.', 'info')}><CircleHelp aria-hidden="true" /> Hilfe & Tastatur</button>
       </aside>
       {mobileNav && <button className="nav-scrim" aria-label="Navigation schließen" onClick={() => setMobileNav(false)} />}

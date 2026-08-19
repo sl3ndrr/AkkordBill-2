@@ -1,9 +1,57 @@
-import type { AppState } from '../types'
+import type { AppState, Student } from '../types'
 import { emptyState } from './defaults'
+import { ensureStudentCodePattern, studentCodeForIndex, studentCodeIndex } from './utils'
 
 const STORAGE_KEY = 'gitarrenrechnungen-state-v2'
 const DB_NAME = 'gitarrenrechnungen-handles'
 const HANDLE_KEY = 'backup-directory'
+
+function normalizeStudents(students: Student[], declaredNextIndex = 0): { students: Student[]; nextStudentCodeIndex: number } {
+  const used = new Set<string>()
+  let cursor = 0
+  let highestIndex = -1
+  const normalized = students.map((student) => {
+    const requestedCode = typeof student.billingCode === 'string' ? student.billingCode.trim().toLowerCase() : ''
+    let billingCode = requestedCode
+    if (studentCodeIndex(billingCode) < 0 || used.has(billingCode)) {
+      while (used.has(studentCodeForIndex(cursor))) cursor += 1
+      billingCode = studentCodeForIndex(cursor)
+    }
+    used.add(billingCode)
+    const index = studentCodeIndex(billingCode)
+    highestIndex = Math.max(highestIndex, index)
+    cursor = Math.max(cursor, index + 1)
+    return { ...student, billingCode }
+  })
+  return {
+    students: normalized,
+    nextStudentCodeIndex: Math.max(0, declaredNextIndex, highestIndex + 1),
+  }
+}
+
+function normalizeState(data: Partial<AppState>): AppState {
+  const base = emptyState()
+  const normalizedStudents = normalizeStudents(Array.isArray(data.students) ? data.students : [], data.nextStudentCodeIndex)
+  const incomingSettings = data.settings ?? base.settings
+  return {
+    ...base,
+    ...data,
+    guardians: Array.isArray(data.guardians) ? data.guardians : [],
+    students: normalizedStudents.students,
+    invoices: Array.isArray(data.invoices) ? data.invoices : [],
+    voidedInvoiceNumbers: Array.isArray(data.voidedInvoiceNumbers) ? data.voidedInvoiceNumbers : [],
+    settings: {
+      ...base.settings,
+      ...incomingSettings,
+      issuer: { ...base.settings.issuer, ...incomingSettings.issuer },
+      numberPattern: ensureStudentCodePattern(incomingSettings.numberPattern),
+    },
+    counters: data.counters ?? {},
+    nextStudentCodeIndex: normalizedStudents.nextStudentCodeIndex,
+    audit: Array.isArray(data.audit) ? data.audit : [],
+    updatedAt: data.updatedAt ?? new Date().toISOString(),
+  }
+}
 
 export function loadState(): AppState {
   try {
@@ -13,12 +61,7 @@ export function loadState(): AppState {
     if (parsed.schemaVersion !== 2 || !Array.isArray(parsed.invoices) || !Array.isArray(parsed.guardians) || !Array.isArray(parsed.students)) {
       return emptyState()
     }
-    return {
-      ...emptyState(),
-      ...parsed,
-      voidedInvoiceNumbers: Array.isArray(parsed.voidedInvoiceNumbers) ? parsed.voidedInvoiceNumbers : [],
-      updatedAt: parsed.updatedAt ?? new Date().toISOString(),
-    }
+    return normalizeState(parsed)
   } catch {
     return emptyState()
   }
@@ -43,12 +86,13 @@ export function parseBackup(text: string): AppState {
   if (data.schemaVersion !== 2 || !Array.isArray(data.guardians) || !Array.isArray(data.students) || !Array.isArray(data.invoices)) {
     throw new Error('Die Datei hat kein unterstütztes Backup-Format.')
   }
-  const voidedInvoiceNumbers = Array.isArray(data.voidedInvoiceNumbers) ? data.voidedInvoiceNumbers : []
+  const normalized = normalizeState(data)
+  const voidedInvoiceNumbers = normalized.voidedInvoiceNumbers
   const numbers = [...data.invoices.map((invoice) => invoice.number), ...voidedInvoiceNumbers.map((invoice) => invoice.number)].filter(Boolean)
   if (new Set(numbers).size !== numbers.length) {
     throw new Error('Das Backup enthält doppelte Rechnungsnummern.')
   }
-  return { ...emptyState(), ...data, voidedInvoiceNumbers, updatedAt: new Date().toISOString() }
+  return { ...normalized, updatedAt: new Date().toISOString() }
 }
 
 function openHandleDb(): Promise<IDBDatabase> {

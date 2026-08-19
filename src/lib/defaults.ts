@@ -17,7 +17,7 @@ export const defaultSettings: Settings = {
   bankName: '',
   privateRate: 30,
   duoRate: 20,
-  numberPattern: '{YYYY}-{NNNN}',
+  numberPattern: '{YYYY}-{K}-{NNNN}',
   resetNumberAnnually: true,
   paymentTermDays: 14,
   defaultLegalText: 'Umsatzsteuerbefreit gemäß § 19 UStG (Kleinunternehmerregelung).',
@@ -34,6 +34,7 @@ export function emptyState(): AppState {
     voidedInvoiceNumbers: [],
     settings: structuredClone(defaultSettings),
     counters: {},
+    nextStudentCodeIndex: 0,
     audit: [],
     updatedAt: new Date().toISOString(),
   }
@@ -91,6 +92,7 @@ export function createDemoState(): AppState {
   const studentA = {
     id: 'student-demo-a',
     name: 'Lina Winter',
+    billingCode: 'a',
     guardianIds: [guardianA.id],
     note: 'Einzelunterricht · Mittwoch',
     active: true,
@@ -100,6 +102,7 @@ export function createDemoState(): AppState {
   const studentB = {
     id: 'student-demo-b',
     name: 'Emir Özdemir',
+    billingCode: 'b',
     guardianIds: [guardianB.id],
     note: 'Duo-Unterricht · Freitag',
     active: true,
@@ -175,12 +178,13 @@ export function createDemoState(): AppState {
     guardians: [guardianA, guardianB],
     students: [studentA, studentB],
     invoices: [
-      mkInvoice('invoice-demo-1', `${year}-0001`, guardianA.id, studentA.id, studentA.name, 'paid', 120, 2),
-      mkInvoice('invoice-demo-2', `${year}-0002`, guardianB.id, studentB.id, studentB.name, 'sent', 90, 1),
+      mkInvoice('invoice-demo-1', `${year}-a-0001`, guardianA.id, studentA.id, studentA.name, 'paid', 120, 2),
+      mkInvoice('invoice-demo-2', `${year}-b-0001`, guardianB.id, studentB.id, studentB.name, 'sent', 90, 1),
     ],
     voidedInvoiceNumbers: [],
     settings,
-    counters: { [String(year)]: 3 },
+    counters: { [`${year}:a`]: 2, [`${year}:b`]: 2 },
+    nextStudentCodeIndex: 2,
     audit: [{ id: crypto.randomUUID(), at: now, label: 'Beispieldaten angelegt', entityType: 'system' }],
     updatedAt: now,
   }

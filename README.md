@@ -2,6 +2,8 @@
 
 Eine vollständig clientseitige Web-App für Rechnungen rund um Gitarrenunterricht. Sie läuft als statische Vite-App auf GitHub Pages; es gibt weder Server noch Datenbank, Benutzerkonto, Tracking oder externe API-Aufrufe.
 
+Aktuelle App-Version: **1.0.2**
+
 ## Funktionsumfang
 
 - Kinder und mehrere Erziehungsberechtigte verwalten und miteinander verknüpfen
@@ -9,7 +11,7 @@ Eine vollständig clientseitige Web-App für Rechnungen rund um Gitarrenunterric
 - mehrere Kinder und automatisch berechnete Zwischensummen auf einer Rechnung
 - frei definierbare Positionen, Zahlungsziel und Textbausteine
 - Entwurf, versendet, bezahlt und automatisch erkanntes „überfällig“
-- konfigurierbarer Nummernkreis; Nummern werden erst bei Finalisierung vergeben
+- konfigurierbarer Nummernkreis mit dauerhaftem Kinderkennzeichen (`a`, `b`, `c` …); jedes Kind bzw. jede Kindkombination zählt getrennt und Nummern werden erst bei Finalisierung vergeben
 - eingefrorener Adress-/Kontostand als Snapshot auf finalisierten Rechnungen; kontrolliertes späteres Bearbeiten wird protokolliert
 - A4-Druckansicht im Stil der mitgelieferten LaTeX-Vorlage
 - clientseitig erzeugter EPC-GiroCode (EPC069-12 / Version 002) für SEPA-Überweisungen
@@ -67,7 +69,7 @@ Das ist **keine Google-Drive-, Dropbox- oder sonstige Cloud-Integration**. Wenn 
 
 - Browserdaten sind an das jeweilige Browserprofil und die konkrete GitHub-Pages-Adresse gebunden. Regelmäßige JSON-Backups werden empfohlen.
 - Inkognito-Modus, das Löschen von Website-Daten oder ein Geräteverlust können lokale Daten entfernen.
-- Rechnungsnummern sind innerhalb dieses lokalen Datenbestands monoton und eindeutig. Parallel genutzte Browserprofile/Geräte teilen keinen Nummernkreis; für einen lückenlosen gemeinsamen Nummernkreis darf nur ein führender Datenbestand verwendet werden.
+- Rechnungsnummern sind innerhalb jedes Kinderkennzeichens monoton und eindeutig. Das erste angelegte Kind erhält `a`, das zweite `b`; kombinierte Rechnungen verwenden beispielsweise `ab`. Parallel genutzte Browserprofile/Geräte teilen keinen Nummernkreis; für einen lückenlosen gemeinsamen Nummernkreis darf nur ein führender Datenbestand verwendet werden.
 - Finalisierte Rechnungen können bearbeitet, im Status geändert, dupliziert oder nach Bestätigung gelöscht werden. Beim Löschen bleibt die Rechnungsnummer im lokalen Nummernregister dauerhaft reserviert und wird nicht erneut vergeben.
 - Voreingestellt ist ein Hinweis auf § 19 UStG ohne Umsatzsteuerausweis. Der Rechtstext ist editierbar und muss zur tatsächlichen steuerlichen Situation passen. Die App ersetzt keine Steuer- oder Rechtsberatung.
 

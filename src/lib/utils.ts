@@ -61,27 +61,66 @@ export function studentName(invoice: Invoice, students: Student[]): string {
   return names.join(', ') || 'Ohne Kind'
 }
 
-export function formatInvoiceNumber(settings: Settings, sequence: number, year: number): string {
-  const hasSequence = /\{N+\}/.test(settings.numberPattern)
-  const formatted = settings.numberPattern
+export function studentCodeForIndex(index: number): string {
+  let value = Math.max(0, Math.floor(index)) + 1
+  let code = ''
+  while (value > 0) {
+    value -= 1
+    code = String.fromCharCode(97 + (value % 26)) + code
+    value = Math.floor(value / 26)
+  }
+  return code
+}
+
+export function studentCodeIndex(code: string): number {
+  if (!/^[a-z]+$/i.test(code)) return -1
+  const value = code.toLowerCase().split('').reduce((total, letter) => total * 26 + letter.charCodeAt(0) - 96, 0)
+  return value - 1
+}
+
+export function ensureStudentCodePattern(pattern?: string): string {
+  const source = pattern?.trim() || '{YYYY}-{NNNN}'
+  if (source.includes('{K}')) return source
+  const sequenceToken = /\{N+\}/.exec(source)
+  if (!sequenceToken || sequenceToken.index === undefined) return `${source}-{K}-{NNNN}`
+  const prefix = source.slice(0, sequenceToken.index)
+  const separator = /[-/_.]/.test(prefix.at(-1) ?? '') ? prefix.at(-1) : '-'
+  return `${prefix}{K}${separator}${source.slice(sequenceToken.index)}`
+}
+
+export function invoiceStudentCode(state: Pick<AppState, 'students'>, studentIds: string[]): string {
+  const codes = [...new Set(studentIds
+    .map((id) => state.students.find((student) => student.id === id)?.billingCode?.toLowerCase())
+    .filter((code): code is string => Boolean(code)))]
+    .sort((a, b) => studentCodeIndex(a) - studentCodeIndex(b))
+  return codes.join('') || 'x'
+}
+
+export function formatInvoiceNumber(settings: Settings, sequence: number, year: number, studentCode = 'a'): string {
+  const pattern = ensureStudentCodePattern(settings.numberPattern)
+  const hasSequence = /\{N+\}/.test(pattern)
+  const formatted = pattern
     .replaceAll('{YYYY}', String(year))
     .replaceAll('{YY}', String(year).slice(-2))
+    .replaceAll('{K}', studentCode.toLowerCase())
     .replace(/\{(N+)\}/g, (_match, digits: string) => String(sequence).padStart(digits.length, '0'))
   return hasSequence ? formatted : `${formatted}-${String(sequence).padStart(4, '0')}`
 }
 
-export function nextInvoiceAllocation(state: AppState, invoiceDate: string): { number: string; sequence: number; counterKey: string } {
+export function nextInvoiceAllocation(state: AppState, invoiceDate: string, studentIds: string[]): { number: string; sequence: number; counterKey: string } {
   const year = parseDate(invoiceDate).getFullYear()
-  const counterKey = state.settings.resetNumberAnnually ? String(year) : 'global'
+  const studentCode = invoiceStudentCode(state, studentIds)
+  const counterScope = state.settings.resetNumberAnnually ? String(year) : 'global'
+  const counterKey = `${counterScope}:${studentCode}`
   let sequence = Math.max(1, state.counters[counterKey] ?? 1)
-  let candidate = formatInvoiceNumber(state.settings, sequence, year)
+  let candidate = formatInvoiceNumber(state.settings, sequence, year, studentCode)
   const used = new Set([
     ...state.invoices.map((invoice) => invoice.number),
     ...state.voidedInvoiceNumbers.map((invoice) => invoice.number),
   ].filter(Boolean))
   while (used.has(candidate)) {
     sequence += 1
-    candidate = formatInvoiceNumber(state.settings, sequence, year)
+    candidate = formatInvoiceNumber(state.settings, sequence, year, studentCode)
   }
   return { number: candidate, sequence, counterKey }
 }

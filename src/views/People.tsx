@@ -3,7 +3,7 @@ import { ChevronRight, Mail, MapPin, Pencil, Plus, Search, Trash2, UserRound, Us
 import type { AppState, Guardian, Student } from '../types'
 import { EmptyState } from '../components/EmptyState'
 import { Modal } from '../components/Modal'
-import { uid } from '../lib/utils'
+import { studentCodeForIndex, uid } from '../lib/utils'
 
 interface PeopleProps {
   state: AppState
@@ -21,7 +21,7 @@ const blankGuardian = (): Guardian => ({
 })
 
 const blankStudent = (): Student => ({
-  id: uid('student'), name: '', guardianIds: [], note: '', active: true,
+  id: uid('student'), name: '', billingCode: '', guardianIds: [], note: '', active: true,
   createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
 })
 
@@ -73,7 +73,7 @@ export function People({ state, onSaveGuardian, onSaveStudent, onDeleteGuardian,
                 const linked = student.guardianIds.flatMap((id) => state.guardians.filter((guardian) => guardian.id === id))
                 return (
                   <article className="student-card" key={student.id} style={{ '--delay': `${Math.min(index, 8) * 28}ms` } as React.CSSProperties}>
-                    <header><span className={`avatar avatar--large avatar--tone-${index % 4}`}>{student.name.slice(0, 1)}</span><span className={`active-dot ${student.active ? '' : 'active-dot--muted'}`} title={student.active ? 'Aktiv' : 'Inaktiv'} /></header>
+                    <header><span className={`avatar avatar--large avatar--tone-${index % 4}`}>{student.name.slice(0, 1)}</span><span className="student-card__meta"><span className="student-code" title="Kennzeichen im Rechnungsnummernkreis">{student.billingCode}</span><span className={`active-dot ${student.active ? '' : 'active-dot--muted'}`} title={student.active ? 'Aktiv' : 'Inaktiv'} /></span></header>
                     <h3>{student.name}</h3>
                     <p>{student.note || 'Gitarrenunterricht'}</p>
                     <div className="student-card__guardians">{linked.map((guardian) => <span key={guardian.id}><UserRound aria-hidden="true" />{guardian.name}</span>)}</div>
@@ -113,6 +113,7 @@ export function People({ state, onSaveGuardian, onSaveStudent, onDeleteGuardian,
       <Modal open={Boolean(studentForm)} onClose={closeStudentForm} title={state.students.some((item) => item.id === studentForm?.id) ? 'Kind bearbeiten' : 'Kind anlegen'} eyebrow="Schüler:in" footer={<><button className="button button--text" onClick={closeStudentForm}>Abbrechen</button><button className="button button--primary" onClick={saveStudent}>Speichern</button></>}>
         {studentForm && <form className="form-stack" onSubmit={(event) => { event.preventDefault(); saveStudent() }}>
           {error && <p className="inline-error" role="alert">{error}</p>}
+          <div className="student-code-note"><span>{studentForm.billingCode || studentCodeForIndex(state.nextStudentCodeIndex)}</span><div><strong>Rechnungskennzeichen</strong><small>{studentForm.billingCode ? 'Bleibt diesem Kind dauerhaft zugeordnet.' : 'Wird beim Speichern automatisch und dauerhaft vergeben.'}</small></div></div>
           <label className="field"><span>Name *</span><input autoFocus value={studentForm.name} onChange={(event) => setStudentForm({ ...studentForm, name: event.target.value })} /></label>
           <fieldset className="chip-fieldset"><legend>Erziehungsberechtigte *</legend><div className="choice-chips">{state.guardians.map((guardian) => <label className={studentForm.guardianIds.includes(guardian.id) ? 'choice-chip is-selected' : 'choice-chip'} key={guardian.id}><input type="checkbox" checked={studentForm.guardianIds.includes(guardian.id)} onChange={() => setStudentForm({ ...studentForm, guardianIds: studentForm.guardianIds.includes(guardian.id) ? studentForm.guardianIds.filter((id) => id !== guardian.id) : [...studentForm.guardianIds, guardian.id] })} /><span className="avatar avatar--warm">{guardian.name.slice(0, 1)}</span>{guardian.name}</label>)}</div>{!state.guardians.length && <p className="field-hint field-hint--warning">Lege zuerst eine erziehungsberechtigte Person an.</p>}</fieldset>
           <label className="field"><span>Unterricht / interne Notiz</span><textarea rows={3} value={studentForm.note} onChange={(event) => setStudentForm({ ...studentForm, note: event.target.value })} placeholder="z. B. Duo-Unterricht · Freitag" /></label>
