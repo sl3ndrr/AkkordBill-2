@@ -156,7 +156,7 @@ test('Rechnungsdokument druckt automatisch berechneten Zeitraum und Fälligkeit'
   assert.equal(formatDateLong(testInvoice.dueDate), '15. August 2026')
 })
 
-test('Druck-Testrechnung mit 24 Positionen nutzt mehrseitige Schutzregeln', () => {
+test('Druck-Testrechnung mit 24 Positionen nutzt wiederholte Fußzeile und mehrseitige Schutzregeln', () => {
   const items = Array.from({ length: 24 }, (_, index) => createLessonItem(
     'student-a',
     index < 12 ? `2026-08-${String(index + 1).padStart(2, '0')}` : `2026-09-${String(index - 11).padStart(2, '0')}`,
@@ -177,14 +177,16 @@ test('Druck-Testrechnung mit 24 Positionen nutzt mehrseitige Schutzregeln', () =
   assert.match(markup, /August 2026/)
   assert.match(markup, /September 2026/)
   assert.ok(markup.indexOf('invoice-footer') > markup.lastIndexOf('</table>'))
+  assert.equal(markup.match(/class="invoice-footer"/g)?.length, 1)
   assert.doesNotMatch(markup, /Seite 1 von 1/)
 
   const stylesheet = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
+  const printStyles = stylesheet.slice(stylesheet.indexOf('@media print'))
   assert.match(stylesheet, /\.invoice-table tr \{ break-inside: avoid; page-break-inside: avoid; \}/)
-  assert.match(stylesheet, /@page \{ size: A4 portrait; margin: 16mm 20mm 14mm; \}/)
+  assert.match(printStyles, /@page \{ size: A4 portrait; margin: 16mm 20mm 22mm; \}/)
   assert.match(stylesheet, /\.invoice-footer \{ position: static;/)
-  assert.doesNotMatch(stylesheet, /page-break-after: always/)
-  assert.doesNotMatch(stylesheet, /\.invoice-footer \{ position: fixed;/)
+  assert.match(printStyles, /\.invoice-footer \{ position: fixed; right: 20mm; bottom: 8mm; left: 20mm; margin: 0; padding: 0; background: #fff; \}/)
+  assert.doesNotMatch(printStyles, /page-break-after: always/)
 })
 
 test('alle Kebab-Menü-Aktionen werden an den vorgesehenen Handler weitergeleitet', () => {
