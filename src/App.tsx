@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { BarChart3, BookUser, FilePlus2, LayoutDashboard, Menu, MessageSquareText, Moon, ReceiptText, Search, Settings as SettingsIcon, Sun, UserRound, X } from 'lucide-react'
+import { BarChart3, BookUser, FilePlus2, LayoutDashboard, Menu, MessageSquareText, Moon, Palette, ReceiptText, Search, Settings as SettingsIcon, Sun, UserRound, X } from 'lucide-react'
 import type { AppState, AuditEvent, Guardian, Invoice, InvoiceDraft, InvoiceSnapshot, InvoiceStatus, PageKey, Settings as SettingsType, Student, ToastMessage } from './types'
 import { Dashboard } from './views/Dashboard'
 import { Invoices } from './views/Invoices'
@@ -57,10 +57,6 @@ function App() {
   const [saveStateLabel, setSaveStateLabel] = useState<'saved' | 'saving'>('saved')
   const [savedAt, setSavedAt] = useState(() => new Date())
   const [lastBackupAt, setLastBackupAt] = useState(loadLastBackupAt)
-  const [resolvedDark, setResolvedDark] = useState(() => (
-    state.settings.theme === 'dark'
-    || (state.settings.theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
-  ))
   const [folderConnected, setFolderConnected] = useState(false)
   const [folderName, setFolderName] = useState('')
   const folderHandle = useRef<FileSystemDirectoryHandle | null>(null)
@@ -117,7 +113,6 @@ function App() {
     const root = document.documentElement
     const apply = () => {
       const dark = state.settings.theme === 'dark' || (state.settings.theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
-      setResolvedDark(dark)
       root.dataset.theme = dark ? 'dark' : 'light'
       root.style.colorScheme = dark ? 'dark' : 'light'
       document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#151821' : '#f6f6fb')
@@ -508,8 +503,11 @@ function App() {
   }
   const openInvoice = (id: string) => { setSelectedInvoiceId(id); setPage('invoices') }
   const setCurrentPage = (next: PageKey) => { setPage(next); setMobileNav(false) }
-  const toggleTheme = () => saveSettings({ ...state.settings, theme: resolvedDark ? 'light' : 'dark' })
-  const themeToggleLabel = resolvedDark ? 'Hellmodus aktivieren' : 'Dunkelmodus aktivieren'
+  const nextTheme = state.settings.theme === 'system' ? 'light' : state.settings.theme === 'light' ? 'dark' : 'system'
+  const toggleTheme = () => saveSettings({ ...state.settings, theme: nextTheme })
+  const themeNames = { system: 'System', light: 'Hell', dark: 'Dunkel' } as const
+  const themeToggleLabel = `Aktuelles Farbschema: ${themeNames[state.settings.theme]}. Als Nächstes ${themeNames[nextTheme]} aktivieren.`
+  const ThemeToggleIcon = state.settings.theme === 'system' ? Palette : state.settings.theme === 'light' ? Sun : Moon
   const backupStatusLabel = lastBackupAt ? `Letztes Backup: ${backupDateFormatter.format(new Date(lastBackupAt))}` : 'Noch kein Backup'
 
   return (
@@ -528,7 +526,7 @@ function App() {
         <header className="topbar">
           <button className="icon-button mobile-only" onClick={() => setMobileNav(true)} aria-label="Navigation öffnen"><Menu aria-hidden="true" /></button>
           <button className="topbar-search" onClick={() => { setPage('invoices'); requestAnimationFrame(() => document.querySelector<HTMLInputElement>('#invoice-search')?.focus()) }}><Search aria-hidden="true" /><span>Rechnungen durchsuchen</span></button>
-          <div className="topbar__end"><div className="topbar__storage-status"><span className={`save-indicator ${saveStateLabel === 'saving' ? 'is-saving' : ''}`}><i />{saveStateLabel === 'saving' ? 'Speichert …' : `Gespeichert ${savedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`}</span><span className="backup-indicator">{backupStatusLabel}</span></div><button className="icon-button" onClick={toggleTheme} aria-label={themeToggleLabel} title={themeToggleLabel}>{resolvedDark ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}</button><button className="button button--primary topbar-new" onClick={openNewInvoice}><FilePlus2 aria-hidden="true" /><span>Neue Rechnung</span></button></div>
+          <div className="topbar__end"><div className="topbar__storage-status"><span className={`save-indicator ${saveStateLabel === 'saving' ? 'is-saving' : ''}`}><i />{saveStateLabel === 'saving' ? 'Speichert …' : `Gespeichert ${savedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`}</span><span className="backup-indicator">{backupStatusLabel}</span></div><button className="icon-button" onClick={toggleTheme} aria-label={themeToggleLabel} title={themeToggleLabel}><ThemeToggleIcon aria-hidden="true" /></button><button className="button button--primary topbar-new" onClick={openNewInvoice}><FilePlus2 aria-hidden="true" /><span>Neue Rechnung</span></button></div>
         </header>
 
         <main id="main-content" tabIndex={-1}>
