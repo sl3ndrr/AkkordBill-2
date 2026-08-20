@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { BarChart3, BookUser, CircleHelp, FilePlus2, LayoutDashboard, Menu, MessageSquareText, Moon, ReceiptText, Search, Settings as SettingsIcon, Sun, X } from 'lucide-react'
+import { BarChart3, BookUser, CircleHelp, FilePlus2, LayoutDashboard, Menu, MessageSquareText, Moon, ReceiptText, Search, Settings as SettingsIcon, Sun, UserRound, X } from 'lucide-react'
 import type { AppState, AuditEvent, Guardian, Invoice, InvoiceDraft, InvoiceSnapshot, InvoiceStatus, PageKey, Settings as SettingsType, Student, ToastMessage } from './types'
 import { Dashboard } from './views/Dashboard'
 import { Invoices } from './views/Invoices'
@@ -7,6 +7,7 @@ import { InvoiceEditor } from './views/InvoiceEditor'
 import { People } from './views/People'
 import { Reports } from './views/Reports'
 import { Settings } from './views/Settings'
+import { About } from './views/About'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { ToastRegion } from './components/ToastRegion'
 import { InvoicePrint } from './components/InvoicePrint'
@@ -20,6 +21,7 @@ const navItems: Array<{ key: PageKey; label: string; icon: typeof LayoutDashboar
   { key: 'invoices', label: 'Rechnungen', icon: ReceiptText },
   { key: 'people', label: 'Familien', icon: BookUser },
   { key: 'reports', label: 'Auswertung', icon: BarChart3 },
+  { key: 'about', label: 'Über mich', icon: UserRound },
   { key: 'settings', label: 'Einstellungen', icon: SettingsIcon },
 ]
 
@@ -534,6 +536,7 @@ function App() {
           {page === 'invoices' && <Invoices state={state} selectedId={selectedInvoiceId} onSelect={setSelectedInvoiceId} onNew={openNewInvoice} onEdit={editInvoice} onDuplicate={duplicateInvoice} onDelete={requestDeleteInvoice} onSetStatus={setInvoiceStatus} onPrint={print} onToast={toast} />}
           {page === 'people' && <People state={state} onSaveGuardian={saveGuardian} onSaveStudent={saveStudent} onDeleteGuardian={deleteGuardian} onDeleteStudent={deleteStudent} />}
           {page === 'reports' && <Reports state={state} />}
+          {page === 'about' && <About />}
           {page === 'settings' && <Settings state={state} folderSupported={Boolean(window.showDirectoryPicker)} folderConnected={folderConnected} folderName={folderName} onSave={saveSettings} onExport={exportBackup} onImport={importBackup} onConnectFolder={connectFolder} onDisconnectFolder={disconnectFolder} onBackupNow={backupNow} onReset={resetAll} />}
         </main>
       </div>
