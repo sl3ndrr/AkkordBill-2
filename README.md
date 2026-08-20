@@ -16,7 +16,7 @@ Aktuelle App-Version: **1.0.2**
 - A4-Druckansicht im Stil der mitgelieferten LaTeX-Vorlage
 - clientseitig erzeugter EPC-GiroCode (EPC069-12 / Version 002) für SEPA-Überweisungen
 - Dashboard, Volltextsuche, Filter, Zahlungserinnerung per `mailto:`, Duplizieren wiederkehrender Rechnungen und CSV-Jahresübersicht
-- Light-/Dark-Mode, responsive Desktop-/Tablet-/Smartphone-Oberfläche, Tastaturkürzel und reduzierte Bewegung
+- Light-/Dark-Mode, responsive Desktop-/Tablet-/Smartphone-Oberfläche und reduzierte Bewegung
 - JSON-Export/-Import sowie optionales automatisches Backup in einen lokalen Ordner
 
 ## Tech-Stack
@@ -72,11 +72,6 @@ Das ist **keine Google-Drive-, Dropbox- oder sonstige Cloud-Integration**. Wenn 
 - Rechnungsnummern sind innerhalb jedes Kinderkennzeichens monoton und eindeutig. Das erste angelegte Kind erhält `a`, das zweite `b`; kombinierte Rechnungen verwenden beispielsweise `ab`. Parallel genutzte Browserprofile/Geräte teilen keinen Nummernkreis; für einen lückenlosen gemeinsamen Nummernkreis darf nur ein führender Datenbestand verwendet werden.
 - Finalisierte Rechnungen können bearbeitet, im Status geändert, dupliziert oder nach Bestätigung gelöscht werden. Beim Löschen bleibt die Rechnungsnummer im lokalen Nummernregister dauerhaft reserviert und wird nicht erneut vergeben.
 - Voreingestellt ist ein Hinweis auf § 19 UStG ohne Umsatzsteuerausweis. Der Rechtstext ist editierbar und muss zur tatsächlichen steuerlichen Situation passen. Die App ersetzt keine Steuer- oder Rechtsberatung.
-
-## Tastatur
-
-- `N`: neue Rechnung
-- `/`: Rechnungsseite öffnen und Suche fokussieren
 
 ## Bewusst nicht enthalten
 

@@ -15,9 +15,7 @@ interface ModalProps {
 export function Modal({ open, title, eyebrow, onClose, children, footer, size = 'medium' }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const previousFocus = useRef<HTMLElement | null>(null)
-  const onCloseRef = useRef(onClose)
   const titleId = useId()
-  onCloseRef.current = onClose
 
   useEffect(() => {
     if (!open) return
@@ -26,27 +24,9 @@ export function Modal({ open, title, eyebrow, onClose, children, footer, size = 
       const focusTarget = dialogRef.current?.querySelector<HTMLElement>('[autofocus], input, select, textarea, button')
       focusTarget?.focus()
     })
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onCloseRef.current()
-      if (event.key !== 'Tab' || !dialogRef.current) return
-      const focusable = [...dialogRef.current.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')]
-        .filter((element) => !element.hasAttribute('disabled'))
-      if (!focusable.length) return
-      const first = focusable[0]
-      const last = focusable.at(-1)!
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault()
-        last.focus()
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault()
-        first.focus()
-      }
-    }
-    document.addEventListener('keydown', onKeyDown)
     document.body.classList.add('modal-open')
     return () => {
       cancelAnimationFrame(frame)
-      document.removeEventListener('keydown', onKeyDown)
       document.body.classList.remove('modal-open')
       previousFocus.current?.focus()
     }
@@ -55,7 +35,7 @@ export function Modal({ open, title, eyebrow, onClose, children, footer, size = 
   if (!open) return null
 
   return createPortal(
-    <div className="modal-layer" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onCloseRef.current()}>
+    <div className="modal-layer" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <div ref={dialogRef} className={`modal modal--${size}`} role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <header className="modal__header">
           <div>

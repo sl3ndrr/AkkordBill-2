@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { Invoice, Student } from '../src/types'
 import { defaultSettings, emptyState } from '../src/lib/defaults'
-import { loadState, parseBackup, saveState, serializeBackup } from '../src/lib/storage'
+import { loadLastBackupAt, loadState, parseBackup, recordBackupExport, saveState, serializeBackup } from '../src/lib/storage'
 import { buildEpcPayload, effectiveStatus, ensureStudentCodePattern, formatInvoiceNumber, isValidIban, nextInvoiceAllocation, studentCodeForIndex } from '../src/lib/utils'
 import { APP_VERSION } from '../src/version'
 
@@ -37,6 +37,27 @@ const invoice = (overrides: Partial<Invoice> = {}): Invoice => ({
   updatedAt: '2026-08-01T10:00:00.000Z',
   ...overrides,
 })
+
+function withMockLocalStorage(run: () => void): void {
+  const originalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
+  const entries = new Map<string, string>()
+  const localStorageMock: Storage = {
+    get length() { return entries.size },
+    clear: () => entries.clear(),
+    getItem: (key) => entries.get(key) ?? null,
+    key: (index) => [...entries.keys()][index] ?? null,
+    removeItem: (key) => entries.delete(key),
+    setItem: (key, value) => entries.set(key, value),
+  }
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: localStorageMock })
+
+  try {
+    run()
+  } finally {
+    if (originalStorage) Object.defineProperty(globalThis, 'localStorage', originalStorage)
+    else Reflect.deleteProperty(globalThis, 'localStorage')
+  }
+}
 
 test('konfigurierbare Rechnungsnummern werden korrekt formatiert', () => {
   assert.equal(formatInvoiceNumber(defaultSettings, 23, 2026, 'a'), '2026-a-0023')
@@ -116,27 +137,21 @@ test('ältere Backups erhalten stabile Kinderkennzeichen in Speicherreihenfolge'
 })
 
 test('manuelle Theme-Auswahl bleibt nach einem Reload erhalten', () => {
-  const originalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
-  const entries = new Map<string, string>()
-  const localStorageMock: Storage = {
-    get length() { return entries.size },
-    clear: () => entries.clear(),
-    getItem: (key) => entries.get(key) ?? null,
-    key: (index) => [...entries.keys()][index] ?? null,
-    removeItem: (key) => entries.delete(key),
-    setItem: (key, value) => entries.set(key, value),
-  }
-  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: localStorageMock })
-
-  try {
+  withMockLocalStorage(() => {
     const state = emptyState()
     state.settings.theme = 'dark'
     saveState(state)
     assert.equal(loadState().settings.theme, 'dark')
-  } finally {
-    if (originalStorage) Object.defineProperty(globalThis, 'localStorage', originalStorage)
-    else Reflect.deleteProperty(globalThis, 'localStorage')
-  }
+  })
+})
+
+test('Zeitpunkt des letzten Backup-Exports wird persistiert', () => {
+  withMockLocalStorage(() => {
+    assert.equal(loadLastBackupAt(), null)
+    const exportedAt = recordBackupExport(new Date('2026-08-20T12:32:00.000Z'))
+    assert.equal(exportedAt, '2026-08-20T12:32:00.000Z')
+    assert.equal(loadLastBackupAt(), exportedAt)
+  })
 })
 
 test('sichtbare App-Version ist 1.0.2', () => {

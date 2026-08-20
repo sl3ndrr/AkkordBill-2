@@ -3,6 +3,7 @@ import { emptyState } from './defaults'
 import { ensureStudentCodePattern, studentCodeForIndex, studentCodeIndex } from './utils'
 
 const STORAGE_KEY = 'gitarrenrechnungen-state-v2'
+const LAST_BACKUP_AT_KEY = 'riffrechnung-last-backup-at'
 const DB_NAME = 'gitarrenrechnungen-handles'
 const HANDLE_KEY = 'backup-directory'
 
@@ -69,6 +70,21 @@ export function loadState(): AppState {
 
 export function saveState(state: AppState): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+}
+
+export function loadLastBackupAt(): string | null {
+  try {
+    const value = localStorage.getItem(LAST_BACKUP_AT_KEY)
+    return value && !Number.isNaN(Date.parse(value)) ? value : null
+  } catch {
+    return null
+  }
+}
+
+export function recordBackupExport(at = new Date()): string {
+  const value = at.toISOString()
+  localStorage.setItem(LAST_BACKUP_AT_KEY, value)
+  return value
 }
 
 export function serializeBackup(state: AppState): string {
