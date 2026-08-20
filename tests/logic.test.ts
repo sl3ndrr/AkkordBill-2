@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import type { Invoice, Student } from '../src/types'
 import changelog from '../src/content/changelog.json'
 import { InvoicePrint } from '../src/components/InvoicePrint'
-import { defaultSettings, emptyState } from '../src/lib/defaults'
+import { createDemoState, defaultSettings, emptyState } from '../src/lib/defaults'
 import { calculateInvoiceMenuPosition, type InvoiceMenuAction, runInvoiceMenuAction } from '../src/lib/invoiceMenu'
 import { loadLastBackupAt, loadState, parseBackup, recordBackupExport, saveState, serializeBackup } from '../src/lib/storage'
 import { applyLessonType, billingPeriodFromItems, buildEpcPayload, calculateDueDate, createLessonItem, effectiveStatus, ensureStudentCodePattern, formatDateLong, formatInvoiceNumber, invoicePdfTitle, isValidIban, nextInvoiceAllocation, studentCodeForIndex } from '../src/lib/utils'
@@ -230,6 +230,48 @@ test('Kebab-Menü wird rechtsbündig verankert und bleibt vollständig im Viewpo
 
   const source = readFileSync(new URL('../src/views/Invoices.tsx', import.meta.url), 'utf8')
   assert.match(source, /createPortal\([\s\S]*document\.body/)
+})
+
+test('Demo-Daten bilden Familien, Unterricht und Rechnungen seit Januar 2025 vollständig ab', () => {
+  const demo = createDemoState(new Date('2026-08-20T12:00:00.000Z'))
+  assert.equal(demo.settings.issuer.name, 'Max Mustermann')
+  assert.equal(demo.settings.accountHolder, 'Max Mustermann')
+  assert.equal(isValidIban(demo.settings.iban), true)
+  assert.equal(demo.guardians.length, 10)
+  assert.equal(demo.students.length, 10)
+  assert.ok(demo.guardians.every((guardian) => guardian.email.endsWith('@example.de') && guardian.phone && guardian.address.street && guardian.address.postalCode && guardian.address.city))
+  assert.ok(demo.students.every((entry) => entry.guardianIds.length > 0 && entry.note && entry.active))
+  assert.ok(demo.students.some((entry) => entry.guardianIds.length === 2))
+
+  const expectedMonths: string[] = []
+  for (let year = 2025, month = 0; year < 2026 || year === 2026 && month <= 7;) {
+    expectedMonths.push(`${year}-${String(month + 1).padStart(2, '0')}`)
+    month += 1
+    if (month === 12) { year += 1; month = 0 }
+  }
+  assert.deepEqual([...new Set(demo.invoices.map((entry) => entry.invoiceDate.slice(0, 7)))].sort(), expectedMonths)
+
+  const historical = demo.invoices.filter((entry) => entry.invoiceDate.slice(0, 7) < '2026-08')
+  assert.equal(historical.length, 19 * 7)
+  assert.ok(historical.every((entry) => entry.status === 'paid' && entry.number && entry.paidAt && entry.paidAt.slice(0, 10) <= entry.dueDate))
+
+  const current = demo.invoices.filter((entry) => entry.invoiceDate.startsWith('2026-08'))
+  assert.equal(current.length, 7)
+  assert.ok(current.some((entry) => entry.status === 'sent'))
+  assert.ok(current.filter((entry) => entry.status === 'draft').length >= 2)
+  assert.ok(demo.invoices.every((entry) => entry.items.length >= 8))
+  assert.deepEqual(new Set(demo.invoices.flatMap((entry) => entry.items.map((item) => item.lessonType))), new Set(['solo', 'duo']))
+  assert.ok(demo.invoices.flatMap((entry) => entry.items).every((item) => item.description.endsWith(`(${item.lessonType === 'duo' ? 'Duo' : 'Solo'})`)))
+
+  const numbers = demo.invoices.flatMap((entry) => entry.number ? [entry.number] : [])
+  assert.equal(new Set(numbers).size, numbers.length)
+  withMockLocalStorage(() => {
+    saveState(demo)
+    const restored = loadState()
+    assert.equal(restored.guardians.length, 10)
+    assert.equal(restored.students.length, 10)
+    assert.equal(restored.invoices.length, demo.invoices.length)
+  })
 })
 
 test('vollständiges Backup lässt sich wiederherstellen', () => {
