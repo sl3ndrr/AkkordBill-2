@@ -6,8 +6,8 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import type { Invoice, Student } from '../src/types'
 import changelog from '../src/content/changelog.json'
 import { InvoicePrint } from '../src/components/InvoicePrint'
-import { defaultSettings, emptyState } from '../src/lib/defaults'
-import { type InvoiceMenuAction, runInvoiceMenuAction } from '../src/lib/invoiceMenu'
+import { createDemoState, defaultSettings, emptyState } from '../src/lib/defaults'
+import { calculateInvoiceMenuPosition, type InvoiceMenuAction, runInvoiceMenuAction } from '../src/lib/invoiceMenu'
 import { loadLastBackupAt, loadState, parseBackup, recordBackupExport, saveState, serializeBackup } from '../src/lib/storage'
 import { applyLessonType, billingPeriodFromItems, buildEpcPayload, calculateDueDate, createLessonItem, effectiveStatus, ensureStudentCodePattern, formatDateLong, formatInvoiceNumber, invoicePdfTitle, isValidIban, nextInvoiceAllocation, studentCodeForIndex } from '../src/lib/utils'
 import { APP_VERSION } from '../src/version'
@@ -161,38 +161,46 @@ test('PDF-Titel enthält Rechnungsnummer und dateisicheren Kindesnamen', () => {
   assert.equal(invoicePdfTitle(testInvoice, [student('student-a', 'Lina / Winter', 'a')]), 'Rechnung 2026-b-0002 - Lina - Winter')
 })
 
-test('Druck-Testrechnung mit 24 Positionen nutzt wiederholte Fußzeile und mehrseitige Schutzregeln', () => {
-  const items = Array.from({ length: 24 }, (_, index) => createLessonItem(
-    'student-a',
-    index < 12 ? `2026-08-${String(index + 1).padStart(2, '0')}` : `2026-09-${String(index - 11).padStart(2, '0')}`,
-    defaultSettings,
-    `item-print-${index}`,
-  ))
-  assert.equal(items.length, 24)
-  assert.equal(billingPeriodFromItems(items), 'August bis September 2026')
+test('Druckrechnungen unterschiedlicher Länge führen die Fußzeile genau einmal im Schlussblock', () => {
+  const renderInvoice = (itemCount: number) => {
+    const items = Array.from({ length: itemCount }, (_, index) => createLessonItem(
+      'student-a',
+      index < Math.ceil(itemCount / 2)
+        ? `2026-08-${String(index % 28 + 1).padStart(2, '0')}`
+        : `2026-09-${String(index % 28 + 1).padStart(2, '0')}`,
+      defaultSettings,
+      `item-print-${itemCount}-${index}`,
+    ))
+    return renderToStaticMarkup(createElement(InvoicePrint, {
+      invoice: invoice({ items }),
+      guardians: [],
+      students: [student('student-a', 'Anna', 'a')],
+      settings: defaultSettings,
+    }))
+  }
 
-  const markup = renderToStaticMarkup(createElement(InvoicePrint, {
-    invoice: invoice({ items }),
-    guardians: [],
-    students: [student('student-a', 'Anna', 'a')],
-    settings: defaultSettings,
-  }))
-  assert.equal(markup.match(/class="invoice-item-row(?:\s|")/g)?.length, 24)
-  assert.match(markup, /August bis September 2026/)
-  assert.match(markup, /August 2026/)
-  assert.match(markup, /September 2026/)
-  assert.ok(markup.indexOf('invoice-footer') > markup.lastIndexOf('</table>'))
-  assert.equal(markup.match(/class="invoice-footer"/g)?.length, 1)
-  assert.doesNotMatch(markup, /Seite 1 von 1/)
+  const cases = [
+    { label: 'einseitig', itemCount: 6 },
+    { label: 'zweiseitig', itemCount: 24 },
+    { label: 'knapp dreiseitig', itemCount: 52 },
+  ]
+  cases.forEach(({ label, itemCount }) => {
+    const markup = renderInvoice(itemCount)
+    assert.equal(markup.match(/class="invoice-item-row(?:\s|")/g)?.length, itemCount, label)
+    assert.equal(markup.match(/class="invoice-footer"/g)?.length, 1, label)
+    assert.ok(markup.indexOf('invoice-closing') > markup.lastIndexOf('</table>'), label)
+    assert.ok(markup.indexOf('invoice-footer') > markup.indexOf('invoice-thanks'), label)
+    assert.doesNotMatch(markup, /Seite 1 von 1/, label)
+  })
 
   const stylesheet = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
   const printStyles = stylesheet.slice(stylesheet.indexOf('@media print'))
   assert.match(stylesheet, /\.invoice-table tr \{ break-inside: avoid; page-break-inside: avoid; \}/)
   assert.match(printStyles, /@page \{[\s\S]*size: A4 portrait;[\s\S]*margin: 16mm 20mm 22mm;/)
   assert.match(printStyles, /@bottom-right \{[\s\S]*content: "Seite " counter\(page\) " von " counter\(pages\);/)
-  assert.match(stylesheet, /\.invoice-footer \{ position: static;/)
-  assert.match(printStyles, /\.invoice-footer \{ position: fixed; right: 0; bottom: -14mm; left: 0; margin: 0; padding: 0; \}/)
-  assert.match(printStyles, /\.invoice-footer p \{ padding-inline: 28mm; \}/)
+  assert.match(stylesheet, /\.invoice-closing \{ break-inside: avoid; page-break-inside: avoid; \}/)
+  assert.match(printStyles, /\.invoice-footer \{ position: static; margin: 0; padding-top: 8mm; \}/)
+  assert.doesNotMatch(printStyles, /\.invoice-footer \{[^}]*position: (?:fixed|absolute)/)
   assert.doesNotMatch(printStyles, /page-break-after: always/)
 })
 
@@ -207,6 +215,71 @@ test('alle Kebab-Menü-Aktionen werden an den vorgesehenen Handler weitergeleite
   const actions: InvoiceMenuAction[] = ['edit', 'pdf', 'duplicate', 'delete']
   actions.forEach((action) => runInvoiceMenuAction(action, invoice(), handlers))
   assert.deepEqual(calls, ['edit:invoice-test', 'pdf:invoice-test', 'duplicate:invoice-test', 'delete:invoice-test'])
+})
+
+test('Kebab-Menü wird rechtsbündig verankert und bleibt vollständig im Viewport', () => {
+  assert.deepEqual(calculateInvoiceMenuPosition(
+    { top: 100, right: 900, bottom: 140 },
+    { width: 184, height: 176 },
+    { width: 1000, height: 800 },
+  ), { top: 146, left: 716 })
+
+  assert.deepEqual(calculateInvoiceMenuPosition(
+    { top: 700, right: 990, bottom: 740 },
+    { width: 184, height: 176 },
+    { width: 1000, height: 800 },
+  ), { top: 518, left: 804 })
+
+  assert.deepEqual(calculateInvoiceMenuPosition(
+    { top: 100, right: 40, bottom: 140 },
+    { width: 184, height: 176 },
+    { width: 320, height: 480 },
+  ), { top: 146, left: 12 })
+
+  const source = readFileSync(new URL('../src/views/Invoices.tsx', import.meta.url), 'utf8')
+  assert.match(source, /createPortal\([\s\S]*document\.body/)
+})
+
+test('Demo-Daten bilden Familien, Unterricht und Rechnungen seit Januar 2025 vollständig ab', () => {
+  const demo = createDemoState(new Date('2026-08-20T12:00:00.000Z'))
+  assert.equal(demo.settings.issuer.name, 'Max Mustermann')
+  assert.equal(demo.settings.accountHolder, 'Max Mustermann')
+  assert.equal(isValidIban(demo.settings.iban), true)
+  assert.equal(demo.guardians.length, 10)
+  assert.equal(demo.students.length, 10)
+  assert.ok(demo.guardians.every((guardian) => guardian.email.endsWith('@example.de') && guardian.phone && guardian.address.street && guardian.address.postalCode && guardian.address.city))
+  assert.ok(demo.students.every((entry) => entry.guardianIds.length > 0 && entry.note && entry.active))
+  assert.ok(demo.students.some((entry) => entry.guardianIds.length === 2))
+
+  const expectedMonths: string[] = []
+  for (let year = 2025, month = 0; year < 2026 || year === 2026 && month <= 7;) {
+    expectedMonths.push(`${year}-${String(month + 1).padStart(2, '0')}`)
+    month += 1
+    if (month === 12) { year += 1; month = 0 }
+  }
+  assert.deepEqual([...new Set(demo.invoices.map((entry) => entry.invoiceDate.slice(0, 7)))].sort(), expectedMonths)
+
+  const historical = demo.invoices.filter((entry) => entry.invoiceDate.slice(0, 7) < '2026-08')
+  assert.equal(historical.length, 19 * 7)
+  assert.ok(historical.every((entry) => entry.status === 'paid' && entry.number && entry.paidAt && entry.paidAt.slice(0, 10) <= entry.dueDate))
+
+  const current = demo.invoices.filter((entry) => entry.invoiceDate.startsWith('2026-08'))
+  assert.equal(current.length, 7)
+  assert.ok(current.some((entry) => entry.status === 'sent'))
+  assert.ok(current.filter((entry) => entry.status === 'draft').length >= 2)
+  assert.ok(demo.invoices.every((entry) => entry.items.length >= 8))
+  assert.deepEqual(new Set(demo.invoices.flatMap((entry) => entry.items.map((item) => item.lessonType))), new Set(['solo', 'duo']))
+  assert.ok(demo.invoices.flatMap((entry) => entry.items).every((item) => item.description.endsWith(`(${item.lessonType === 'duo' ? 'Duo' : 'Solo'})`)))
+
+  const numbers = demo.invoices.flatMap((entry) => entry.number ? [entry.number] : [])
+  assert.equal(new Set(numbers).size, numbers.length)
+  withMockLocalStorage(() => {
+    saveState(demo)
+    const restored = loadState()
+    assert.equal(restored.guardians.length, 10)
+    assert.equal(restored.students.length, 10)
+    assert.equal(restored.invoices.length, demo.invoices.length)
+  })
 })
 
 test('vollständiges Backup lässt sich wiederherstellen', () => {
