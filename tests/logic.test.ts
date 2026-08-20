@@ -507,6 +507,16 @@ test('Modal-Formulare verknüpfen ihre Footer-Buttons mit dem nativen Submit', (
   assert.match(editorSource, /<textarea/)
 })
 
+test('Mengenfeld akzeptiert Hundertstelwerte und bietet Viertelschritt-Steuerung', () => {
+  const source = readFileSync(new URL('../src/views/InvoiceEditor.tsx', import.meta.url), 'utf8')
+  assert.match(source, /const MIN_QUANTITY = 0\.01/)
+  assert.match(source, /const MAX_QUANTITY = 99\.99/)
+  assert.match(source, /const QUANTITY_INCREMENT = 0\.25/)
+  assert.match(source, /min=\{MIN_QUANTITY\} max=\{MAX_QUANTITY\} step="0\.01"/)
+  assert.match(source, /event\.key === 'ArrowUp' \|\| event\.key === 'ArrowDown'/)
+  assert.match(source, /className="quantity-stepper"/)
+})
+
 test('Kinderliste startet mit aktivem Aktiv-Filter', () => {
   const source = readFileSync(new URL('../src/views/People.tsx', import.meta.url), 'utf8')
   const stylesheet = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
@@ -516,6 +526,9 @@ test('Kinderliste startet mit aktivem Aktiv-Filter', () => {
   assert.match(source, /switch-row switch-row--compact people-active-filter[\s\S]*type="checkbox"[\s\S]*<i \/>/)
   assert.match(stylesheet, /\.switch-row input:checked \+ i \{[^}]*background: var\(--primary\);/)
   assert.match(stylesheet, /\.switch-row input:checked \+ i::after \{[^}]*background: var\(--on-primary\);[^}]*transform: translate\(20px, -2px\);/)
+  assert.match(stylesheet, /\.switch-row strong \{[^}]*font-size: \.9rem;/)
+  assert.match(stylesheet, /\.switch-row small \{[^}]*font-size: \.75rem;/)
+  assert.match(stylesheet, /\.people-active-filter\.switch-row--compact \{[^}]*min-height: 60px;[^}]*padding: var\(--space-2\) var\(--space-4\);/)
   assert.doesNotMatch(stylesheet, /\.people-active-filter > i \{[^}]*transform:/)
 })
 
