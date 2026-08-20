@@ -1,5 +1,18 @@
 [
   {
+    "version": "1.1.0",
+    "date": "20.08.2026",
+    "changes": [
+      "System-, Hell- und Dunkelmodus lassen sich jetzt direkt in der Kopfleiste durchschalten",
+      "Einstellungen werden automatisch und gebündelt gespeichert",
+      "Rechnungs- und Familienlisten sind sortierbar; die Kinderliste zeigt standardmäßig nur aktive Kinder",
+      "Formulare lassen sich in einzeiligen Feldern mit der Enter-Taste speichern",
+      "PDF-Fußzeilen verbinden den frei editierbaren Rechtstext mit der Seitenzahl und zeigen auf Folgeseiten die Rechnungsnummer",
+      "Entwürfe können mit gut sichtbarem Wasserzeichen als PDF-Vorschau geöffnet werden",
+      "Finalisierte Rechnungen lassen sich nach Bestätigung wieder in echte Entwürfe zurückversetzen"
+    ]
+  },
+  {
     "version": "1.0.3",
     "date": "20.08.2026",
     "changes": [

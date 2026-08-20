@@ -4,6 +4,88 @@ export const euro = new Intl.NumberFormat('de-DE', { style: 'currency', currency
 export const number = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 })
 export const dateLong = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })
 export const dateShort = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })
+export const MAX_FOOTER_TEXT_LENGTH = 120
+const germanCollator = new Intl.Collator('de-DE', { numeric: true, sensitivity: 'base' })
+
+export type SortDirection = 'asc' | 'desc'
+export type PeopleSortMode = 'name-asc' | 'name-desc' | 'created-desc' | 'created-asc'
+export type InvoiceSortKey = 'date' | 'number' | 'family' | 'period' | 'status' | 'amount'
+
+export function isFooterTextWithinLimit(value: string): boolean {
+  return value.length <= MAX_FOOTER_TEXT_LENGTH
+}
+
+export function limitFooterText(value: string): string {
+  return value.slice(0, MAX_FOOTER_TEXT_LENGTH)
+}
+
+export function footerTextForPrint(value: string): string {
+  return limitFooterText(value.replace(/\s+/g, ' ').trim())
+}
+
+function cssContentString(value: string): string {
+  let escaped = ''
+  for (const character of value) {
+    const codePoint = character.codePointAt(0) ?? 0
+    escaped += character === '\\' || character === '"' || character === '<' || codePoint < 32 || codePoint === 127
+      ? `\\${codePoint.toString(16)} `
+      : character
+  }
+  return `"${escaped}"`
+}
+
+export function buildInvoicePrintPageStyle(footerText: string, invoiceNumber: string | null): string {
+  const footerContent = cssContentString(footerTextForPrint(footerText))
+  const invoiceReference = invoiceNumber ? cssContentString(`Rechnung ${invoiceNumber}`) : '""'
+  return `
+@page {
+  @bottom-left {
+    content: ${footerContent};
+    box-sizing: border-box;
+    width: 138mm;
+    height: 15.5mm;
+    overflow: hidden;
+    padding: 3pt 0 7mm;
+    border-top: .5pt solid rgb(30 90 160);
+    color: #666;
+    font-family: 'Inter Variable', Inter, Arial, sans-serif;
+    font-size: 6.8pt;
+    line-height: 1.35;
+    text-align: left;
+    vertical-align: bottom;
+    white-space: normal;
+  }
+  @bottom-right {
+    content: "Seite " counter(page) " von " counter(pages);
+    box-sizing: border-box;
+    width: 32mm;
+    height: 15.5mm;
+    padding: 3pt 0 7mm;
+    border-top: .5pt solid rgb(30 90 160);
+    color: #666;
+    font-family: 'Inter Variable', Inter, Arial, sans-serif;
+    font-size: 6.8pt;
+    line-height: 1.35;
+    text-align: right;
+    vertical-align: bottom;
+    white-space: nowrap;
+  }
+  @top-right {
+    content: ${invoiceReference};
+    padding-top: 5mm;
+    color: #777;
+    font-family: 'Inter Variable', Inter, Arial, sans-serif;
+    font-size: 6.5pt;
+    line-height: 1.2;
+    text-align: right;
+    vertical-align: top;
+  }
+}
+@page :first {
+  @top-right { content: ""; }
+}
+`
+}
 
 export function parseDate(value: string): Date {
   return new Date(`${value}T12:00:00`)
@@ -130,6 +212,73 @@ export function studentName(invoice: Invoice, students: Student[]): string {
     .map((id) => students.find((student) => student.id === id)?.name)
     .filter(Boolean)
   return names.join(', ') || 'Ohne Kind'
+}
+
+export function reopenInvoiceAsDraft(state: AppState, invoiceId: string, at = new Date().toISOString()): AppState {
+  const target = state.invoices.find((invoice) => invoice.id === invoiceId)
+  if (!target || target.status === 'draft') return state
+  const reopened: Invoice = {
+    ...target,
+    number: null,
+    sequence: null,
+    status: 'draft',
+    snapshot: undefined,
+    paidAt: undefined,
+    sentAt: undefined,
+    updatedAt: at,
+  }
+  return {
+    ...state,
+    invoices: state.invoices.map((invoice) => invoice.id === invoiceId ? reopened : invoice),
+    voidedInvoiceNumbers: target.number ? [{
+      number: target.number,
+      sequence: target.sequence,
+      year: target.year,
+      invoiceDate: target.invoiceDate,
+      deletedAt: at,
+      reason: 'reopened',
+      amount: invoiceTotal(target),
+      recipient: guardianName(target, state.guardians),
+    }, ...state.voidedInvoiceNumbers] : state.voidedInvoiceNumbers,
+  }
+}
+
+export function sortPeople<T extends { name: string; createdAt: string }>(entries: T[], mode: PeopleSortMode): T[] {
+  const direction = mode.endsWith('-desc') ? -1 : 1
+  return [...entries].sort((a, b) => {
+    const primary = mode.startsWith('name')
+      ? germanCollator.compare(a.name, b.name)
+      : a.createdAt.localeCompare(b.createdAt)
+    return direction * primary || germanCollator.compare(a.name, b.name)
+  })
+}
+
+function invoicePeriodSortValue(invoice: Invoice): string {
+  return invoice.items
+    .map((item) => item.serviceDate)
+    .filter(Boolean)
+    .sort()[0] ?? invoice.invoiceDate
+}
+
+const invoiceStatusOrder: Record<InvoiceStatus, number> = {
+  draft: 0,
+  sent: 1,
+  overdue: 2,
+  paid: 3,
+}
+
+export function sortInvoices(invoices: Invoice[], key: InvoiceSortKey, direction: SortDirection, guardians: Guardian[], students: Student[]): Invoice[] {
+  const multiplier = direction === 'asc' ? 1 : -1
+  return [...invoices].sort((a, b) => {
+    let primary = 0
+    if (key === 'date') primary = a.invoiceDate.localeCompare(b.invoiceDate) || a.createdAt.localeCompare(b.createdAt)
+    if (key === 'number') primary = germanCollator.compare(a.number ?? 'Entwurf', b.number ?? 'Entwurf')
+    if (key === 'family') primary = germanCollator.compare(`${guardianName(a, guardians)} ${studentName(a, students)}`, `${guardianName(b, guardians)} ${studentName(b, students)}`)
+    if (key === 'period') primary = invoicePeriodSortValue(a).localeCompare(invoicePeriodSortValue(b))
+    if (key === 'status') primary = invoiceStatusOrder[effectiveStatus(a)] - invoiceStatusOrder[effectiveStatus(b)]
+    if (key === 'amount') primary = invoiceTotal(a) - invoiceTotal(b)
+    return multiplier * primary || b.invoiceDate.localeCompare(a.invoiceDate) || b.createdAt.localeCompare(a.createdAt)
+  })
 }
 
 function filenamePart(value: string, fallback: string): string {

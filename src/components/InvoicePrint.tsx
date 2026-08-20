@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import QRCode from 'qrcode'
 import type { Guardian, Invoice, Settings, Student } from '../types'
-import { billingPeriodFromItems, buildEpcPayload, euro, formatDateLong, formatIban, groupItemsByStudent, invoiceTotal, isValidIban, itemTotal, number, parseDate } from '../lib/utils'
+import { billingPeriodFromItems, buildEpcPayload, buildInvoicePrintPageStyle, euro, footerTextForPrint, formatDateLong, formatIban, groupItemsByStudent, invoiceTotal, isValidIban, itemTotal, number, parseDate } from '../lib/utils'
 
 interface InvoicePrintProps {
   invoice: Invoice | null
@@ -15,6 +15,8 @@ export function InvoicePrint({ invoice, guardians, students, settings }: Invoice
   const total = invoice ? invoiceTotal(invoice) : 0
   const period = invoice ? billingPeriodFromItems(invoice.items, invoice.invoiceDate) : ''
   const source = invoice?.snapshot
+  const footerText = invoice ? footerTextForPrint(invoice.legalText || source?.legalText || settings.defaultLegalText) : ''
+  const pageStyle = invoice ? buildInvoicePrintPageStyle(footerText, invoice.number) : ''
   const issuer = source?.issuer ?? settings.issuer
   const account = {
     holder: source?.accountHolder ?? settings.accountHolder,
@@ -80,6 +82,8 @@ export function InvoicePrint({ invoice, guardians, students, settings }: Invoice
 
   return (
     <article className="invoice-paper" aria-label={`Rechnung ${invoice.number ?? 'Entwurf'}`}>
+      <style data-invoice-page-style>{pageStyle}</style>
+      {invoice.status === 'draft' && <div className="invoice-draft-watermark" aria-hidden="true">ENTWURF</div>}
       <div className="invoice-paper__body">
         <header className="invoice-letterhead">
           <section className="invoice-recipient">
@@ -154,8 +158,8 @@ export function InvoicePrint({ invoice, guardians, students, settings }: Invoice
         <div className="invoice-closing">
           <section className="invoice-thanks"><p>Vielen Dank</p><strong>{issuer.name}</strong></section>
           <footer className="invoice-footer">
-            <div />
-            <p>Privatrechnung <span>|</span> {invoice.legalText || source?.legalText || settings.defaultLegalText}</p>
+            <div className="invoice-footer__rule" />
+            <div className="invoice-footer__content"><p>{footerText}</p><span className="invoice-footer__page" aria-hidden="true">Seite …</span></div>
           </footer>
         </div>
       </div>

@@ -3,13 +3,13 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import type { Invoice, Student } from '../src/types'
+import type { Guardian, Invoice, Student } from '../src/types'
 import changelog from '../src/content/changelog.json'
 import { InvoicePrint } from '../src/components/InvoicePrint'
 import { createDemoState, defaultSettings, emptyState } from '../src/lib/defaults'
 import { calculateInvoiceMenuPosition, type InvoiceMenuAction, runInvoiceMenuAction } from '../src/lib/invoiceMenu'
 import { loadLastBackupAt, loadState, parseBackup, recordBackupExport, saveState, serializeBackup } from '../src/lib/storage'
-import { applyLessonType, billingPeriodFromItems, buildEpcPayload, calculateDueDate, createLessonItem, effectiveStatus, ensureStudentCodePattern, formatDateLong, formatInvoiceNumber, invoicePdfTitle, isValidIban, nextInvoiceAllocation, studentCodeForIndex } from '../src/lib/utils'
+import { applyLessonType, billingPeriodFromItems, buildEpcPayload, buildInvoicePrintPageStyle, calculateDueDate, createLessonItem, effectiveStatus, ensureStudentCodePattern, footerTextForPrint, formatDateLong, formatInvoiceNumber, invoicePdfTitle, isFooterTextWithinLimit, isValidIban, limitFooterText, MAX_FOOTER_TEXT_LENGTH, nextInvoiceAllocation, reopenInvoiceAsDraft, sortInvoices, sortPeople, studentCodeForIndex } from '../src/lib/utils'
 import { APP_VERSION } from '../src/version'
 
 const student = (id: string, name: string, billingCode: string): Student => ({
@@ -100,6 +100,41 @@ test('gelöschte finalisierte Rechnungsnummern bleiben reserviert', () => {
   assert.equal(nextInvoiceAllocation(state, '2026-08-21', ['student-a']).number, '2026-a-0002')
 })
 
+test('zurückgesetzte Rechnungen werden echte Entwürfe und verbrauchte Nummern bleiben reserviert', () => {
+  const state = emptyState()
+  state.students = [student('student-a', 'Anna', 'a')]
+  state.counters = { '2026:a': 2 }
+  state.invoices = [invoice({
+    status: 'paid',
+    paidAt: '2026-08-05T10:00:00.000Z',
+    sentAt: '2026-08-01T10:00:00.000Z',
+    snapshot: {
+      issuer: structuredClone(defaultSettings.issuer),
+      guardians: [],
+      students: [{ id: 'student-a', name: 'Anna' }],
+      accountHolder: '',
+      iban: '',
+      bic: '',
+      bankName: '',
+      legalText: defaultSettings.defaultLegalText,
+    },
+  })]
+  const reopened = reopenInvoiceAsDraft(state, 'invoice-test', '2026-08-20T12:00:00.000Z')
+  const draft = reopened.invoices[0]
+  assert.equal(draft?.status, 'draft')
+  assert.equal(draft?.number, null)
+  assert.equal(draft?.sequence, null)
+  assert.equal(draft?.snapshot, undefined)
+  assert.equal(draft?.paidAt, undefined)
+  assert.equal(draft?.sentAt, undefined)
+  assert.equal(reopened.voidedInvoiceNumbers[0]?.number, '2026-a-0001')
+  assert.equal(reopened.voidedInvoiceNumbers[0]?.reason, 'reopened')
+  assert.equal(nextInvoiceAllocation(reopened, '2026-08-21', ['student-a']).number, '2026-a-0002')
+  assert.equal(reopenInvoiceAsDraft(reopened, 'invoice-test'), reopened)
+  assert.match(readFileSync(new URL('../src/views/Invoices.tsx', import.meta.url), 'utf8'), /Zurück in Entwurf/)
+  assert.match(readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8'), /In Entwurf zurücksetzen/)
+})
+
 test('IBAN-Prüfsumme wird validiert', () => {
   assert.equal(isValidIban('DE02 1203 0000 0000 2020 51'), true)
   assert.equal(isValidIban('DE02 1203 0000 0000 2020 52'), false)
@@ -145,6 +180,40 @@ test('Abrechnungszeitraum und Fälligkeit werden aus Positions- und Rechnungsdat
   assert.equal(calculateDueDate('2026-08-01', 14), '2026-08-15')
 })
 
+test('Familien- und Rechnungslisten werden stabil nach der gewählten Spalte sortiert', () => {
+  const anna = { ...student('student-a', 'Anna', 'a'), createdAt: '2026-08-02T10:00:00.000Z' }
+  const ben = { ...student('student-b', 'Ben', 'b'), createdAt: '2026-08-01T10:00:00.000Z' }
+  assert.deepEqual(sortPeople([ben, anna], 'name-asc').map((entry) => entry.name), ['Anna', 'Ben'])
+  assert.deepEqual(sortPeople([ben, anna], 'created-desc').map((entry) => entry.name), ['Anna', 'Ben'])
+
+  const guardians: Guardian[] = [
+    { id: 'guardian-a', name: 'Anna Familie', email: '', phone: '', iban: '', paymentNote: '', address: { street: '', postalCode: '', city: '' }, createdAt: anna.createdAt, updatedAt: anna.updatedAt },
+    { id: 'guardian-b', name: 'Zora Familie', email: '', phone: '', iban: '', paymentNote: '', address: { street: '', postalCode: '', city: '' }, createdAt: ben.createdAt, updatedAt: ben.updatedAt },
+  ]
+  const first = invoice({
+    id: 'invoice-first',
+    number: '2026-a-0010',
+    guardianIds: ['guardian-a'],
+    studentIds: ['student-a'],
+    status: 'paid',
+    items: [{ ...createLessonItem('student-a', '2026-09-01', defaultSettings, 'item-first'), unitPrice: 50 }],
+  })
+  const second = invoice({
+    id: 'invoice-second',
+    number: '2026-a-0002',
+    guardianIds: ['guardian-b'],
+    studentIds: ['student-b'],
+    status: 'draft',
+    items: [{ ...createLessonItem('student-b', '2026-07-01', defaultSettings, 'item-second'), unitPrice: 10 }],
+  })
+  const ids = (key: Parameters<typeof sortInvoices>[1]) => sortInvoices([first, second], key, 'asc', guardians, [anna, ben]).map((entry) => entry.id)
+  assert.deepEqual(ids('number'), ['invoice-second', 'invoice-first'])
+  assert.deepEqual(ids('family'), ['invoice-first', 'invoice-second'])
+  assert.deepEqual(ids('period'), ['invoice-second', 'invoice-first'])
+  assert.deepEqual(ids('status'), ['invoice-second', 'invoice-first'])
+  assert.deepEqual(ids('amount'), ['invoice-second', 'invoice-first'])
+})
+
 test('Rechnungsdokument druckt automatisch berechneten Zeitraum und Fälligkeit', () => {
   const item = createLessonItem('student-a', '2026-08-05', defaultSettings, 'item-print')
   const testInvoice = invoice({
@@ -161,7 +230,16 @@ test('PDF-Titel enthält Rechnungsnummer und dateisicheren Kindesnamen', () => {
   assert.equal(invoicePdfTitle(testInvoice, [student('student-a', 'Lina / Winter', 'a')]), 'Rechnung 2026-b-0002 - Lina - Winter')
 })
 
-test('Druckrechnungen unterschiedlicher Länge führen die Fußzeile genau einmal im Schlussblock', () => {
+test('Fußzeilentext ist auf eine verlässliche zweizeilige Drucklänge begrenzt', () => {
+  assert.equal(MAX_FOOTER_TEXT_LENGTH, 120)
+  assert.equal(defaultSettings.defaultLegalText.startsWith('Privatrechnung |'), true)
+  assert.equal(isFooterTextWithinLimit('x'.repeat(MAX_FOOTER_TEXT_LENGTH)), true)
+  assert.equal(isFooterTextWithinLimit('x'.repeat(MAX_FOOTER_TEXT_LENGTH + 1)), false)
+  assert.equal(limitFooterText('x'.repeat(MAX_FOOTER_TEXT_LENGTH + 1)).length, MAX_FOOTER_TEXT_LENGTH)
+  assert.equal(footerTextForPrint('  Privatrechnung\n   Test  '), 'Privatrechnung Test')
+})
+
+test('Druckrechnungen unterschiedlicher Länge nutzen gemeinsame Seitenfuß- und Folgeseitenbereiche', () => {
   const renderInvoice = (itemCount: number) => {
     const items = Array.from({ length: itemCount }, (_, index) => createLessonItem(
       'student-a',
@@ -194,14 +272,41 @@ test('Druckrechnungen unterschiedlicher Länge führen die Fußzeile genau einma
   })
 
   const stylesheet = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
+  const componentSource = readFileSync(new URL('../src/components/InvoicePrint.tsx', import.meta.url), 'utf8')
   const printStyles = stylesheet.slice(stylesheet.indexOf('@media print'))
+  const pageStyle = buildInvoicePrintPageStyle('Rechtstext mit "Anführungszeichen" und </style>', '2026-a-0001')
   assert.match(stylesheet, /\.invoice-table tr \{ break-inside: avoid; page-break-inside: avoid; \}/)
   assert.match(printStyles, /@page \{[\s\S]*size: A4 portrait;[\s\S]*margin: 16mm 20mm 22mm;/)
-  assert.match(printStyles, /@bottom-right \{[\s\S]*content: "Seite " counter\(page\) " von " counter\(pages\);/)
+  assert.doesNotMatch(printStyles, /@bottom-right/)
+  assert.match(pageStyle, /@bottom-left \{[\s\S]*content: "Rechtstext/)
+  assert.match(pageStyle, /@bottom-right \{[\s\S]*content: "Seite " counter\(page\) " von " counter\(pages\);/)
+  assert.match(pageStyle, /@top-right \{[\s\S]*content: "Rechnung 2026-a-0001";/)
+  assert.match(pageStyle, /@page :first \{[\s\S]*@top-right \{ content: ""; \}/)
+  assert.doesNotMatch(pageStyle, /<\/style>/)
+  assert.doesNotMatch(componentSource, /Privatrechnung/)
   assert.match(stylesheet, /\.invoice-closing \{ break-inside: avoid; page-break-inside: avoid; \}/)
-  assert.match(printStyles, /\.invoice-footer \{ position: static; margin: 0; padding-top: 8mm; \}/)
-  assert.doesNotMatch(printStyles, /\.invoice-footer \{[^}]*position: (?:fixed|absolute)/)
+  assert.match(stylesheet, /\.invoice-footer \{[^}]*text-align: left;/)
+  assert.match(stylesheet, /\.invoice-footer p \{[^}]*-webkit-line-clamp: 2;/)
+  assert.match(printStyles, /\.invoice-footer \{ display: none; \}/)
   assert.doesNotMatch(printStyles, /page-break-after: always/)
+})
+
+test('Entwurfsdrucke tragen ein Wasserzeichen und nur Entwürfe zeigen Positionsdetails', () => {
+  const props = {
+    guardians: [],
+    students: [student('student-a', 'Anna', 'a')],
+    settings: defaultSettings,
+  }
+  const draftMarkup = renderToStaticMarkup(createElement(InvoicePrint, { ...props, invoice: invoice({ number: null, sequence: null, status: 'draft' }) }))
+  const finalMarkup = renderToStaticMarkup(createElement(InvoicePrint, { ...props, invoice: invoice() }))
+  assert.match(draftMarkup, /class="invoice-draft-watermark"[^>]*>ENTWURF</)
+  assert.doesNotMatch(finalMarkup, /invoice-draft-watermark/)
+
+  const stylesheet = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
+  const source = readFileSync(new URL('../src/views/Invoices.tsx', import.meta.url), 'utf8')
+  assert.match(stylesheet.slice(stylesheet.indexOf('@media print')), /\.invoice-draft-watermark \{ position: fixed;/)
+  assert.match(source, /invoice\.status === 'draft' && <section className="position-summary">/)
+  assert.doesNotMatch(source, /<Download/)
 })
 
 test('alle Kebab-Menü-Aktionen werden an den vorgesehenen Handler weitergeleitet', () => {
@@ -333,6 +438,31 @@ test('manuelle Theme-Auswahl bleibt nach einem Reload erhalten', () => {
   })
 })
 
+test('Einstellungen werden gebündelt automatisch gespeichert', () => {
+  const source = readFileSync(new URL('../src/views/Settings.tsx', import.meta.url), 'utf8')
+  assert.match(source, /SETTINGS_AUTOSAVE_DELAY_MS = 600/)
+  assert.match(source, /window\.setTimeout\(\(\) => persist\(form\), SETTINGS_AUTOSAVE_DELAY_MS\)/)
+  assert.match(source, /Die IBAN-Prüfsumme ist nicht gültig/)
+  assert.doesNotMatch(source, /if \(!isValidIban\([^)]*\)\) return/)
+})
+
+test('Modal-Formulare verknüpfen ihre Footer-Buttons mit dem nativen Submit', () => {
+  const peopleSource = readFileSync(new URL('../src/views/People.tsx', import.meta.url), 'utf8')
+  const editorSource = readFileSync(new URL('../src/views/InvoiceEditor.tsx', import.meta.url), 'utf8')
+  assert.match(peopleSource, /type="submit" form=\{GUARDIAN_FORM_ID\}/)
+  assert.match(peopleSource, /type="submit" form=\{STUDENT_FORM_ID\}/)
+  assert.match(editorSource, /type="submit" form=\{INVOICE_EDITOR_FORM_ID\}/)
+  assert.match(editorSource, /onSubmit=\{\(event\) => \{ event\.preventDefault\(\); submit\(false\) \}\}/)
+  assert.match(editorSource, /<textarea/)
+})
+
+test('Kinderliste startet mit aktivem Aktiv-Filter', () => {
+  const source = readFileSync(new URL('../src/views/People.tsx', import.meta.url), 'utf8')
+  assert.match(source, /\[onlyActiveStudents, setOnlyActiveStudents\] = useState\(true\)/)
+  assert.match(source, /Nur aktive Kinder anzeigen/)
+  assert.match(source, /!onlyActiveStudents \|\| student\.active/)
+})
+
 test('Zeitpunkt des letzten Backup-Exports wird persistiert', () => {
   withMockLocalStorage(() => {
     assert.equal(loadLastBackupAt(), null)
@@ -342,8 +472,8 @@ test('Zeitpunkt des letzten Backup-Exports wird persistiert', () => {
   })
 })
 
-test('sichtbare App-Version und neuester Changelog-Eintrag sind 1.0.3', () => {
-  assert.equal(APP_VERSION, '1.0.3')
+test('sichtbare App-Version und neuester Changelog-Eintrag sind 1.1.0', () => {
+  assert.equal(APP_VERSION, '1.1.0')
   assert.ok(Array.isArray(changelog))
   assert.equal(changelog[0]?.version, APP_VERSION)
   assert.ok((changelog[0]?.changes.length ?? 0) >= 2)

@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { Calendar, CircleDollarSign, FileCheck2, Plus, Save, Send, Trash2 } from 'lucide-react'
 import type { Guardian, InvoiceDraft, LessonType, Settings, Student } from '../types'
 import { Modal } from '../components/Modal'
-import { applyLessonType, billingPeriodFromItems, calculateDueDate, createLessonItem, euro, itemTotal } from '../lib/utils'
+import { applyLessonType, billingPeriodFromItems, calculateDueDate, createLessonItem, euro, isFooterTextWithinLimit, itemTotal, limitFooterText, MAX_FOOTER_TEXT_LENGTH } from '../lib/utils'
+
+const INVOICE_EDITOR_FORM_ID = 'invoice-editor-form'
 
 interface InvoiceEditorProps {
   open: boolean
@@ -27,6 +29,7 @@ export function InvoiceEditor({ open, draft, guardians, students, settings, edit
   const eligibleGuardians = linkedGuardianIds.size ? guardians.filter((guardian) => linkedGuardianIds.has(guardian.id)) : guardians
   const total = form.items.reduce((sum, item) => sum + itemTotal(item), 0)
   const calculatedPeriod = billingPeriodFromItems(form.items, form.invoiceDate)
+  const footerTextValid = isFooterTextWithinLimit(form.legalText)
 
   const selectStudent = (student: Student) => {
     setForm((current) => {
@@ -89,9 +92,10 @@ export function InvoiceEditor({ open, draft, guardians, students, settings, edit
     if (!calculatedPeriod) nextErrors.push('Leistungszeitraum über die Positionsdaten angeben.')
     if (!form.items.length) nextErrors.push('Mindestens eine Position ergänzen.')
     if (form.items.some((item) => !item.serviceDate || !item.description.trim() || item.quantity <= 0 || item.unitPrice < 0)) nextErrors.push('Alle Positionen vollständig und mit gültigen Werten ausfüllen.')
+    if (!footerTextValid) nextErrors.push(`Der Fußzeilen-/Rechtstext darf höchstens ${MAX_FOOTER_TEXT_LENGTH} Zeichen lang sein.`)
     setErrors(nextErrors)
     if (!nextErrors.length) {
-      const normalized = { ...form, period: calculatedPeriod }
+      const normalized = { ...form, period: calculatedPeriod, legalText: limitFooterText(form.legalText) }
       onSave(finalized ? { ...normalized, recipientStrategy: 'joint' } : normalized, finalize)
     }
   }
@@ -108,14 +112,14 @@ export function InvoiceEditor({ open, draft, guardians, students, settings, edit
           <div className="modal-total"><span>Gesamt</span><strong>{euro.format(total)}</strong></div>
           <button className="button button--text" type="button" onClick={onClose}>Abbrechen</button>
           {finalized ? (
-            <button className="button button--primary" type="button" onClick={() => submit(false)}><Save aria-hidden="true" /> Änderungen speichern</button>
+            <button className="button button--primary" type="submit" form={INVOICE_EDITOR_FORM_ID}><Save aria-hidden="true" /> Änderungen speichern</button>
           ) : (
-            <><button className="button button--tonal" type="button" onClick={() => submit(false)}>Als Entwurf speichern</button><button className="button button--primary" type="button" onClick={() => submit(true)}><Send aria-hidden="true" /> Finalisieren</button></>
+            <><button className="button button--tonal" type="submit" form={INVOICE_EDITOR_FORM_ID}>Als Entwurf speichern</button><button className="button button--primary" type="button" onClick={() => submit(true)}><Send aria-hidden="true" /> Finalisieren</button></>
           )}
         </>
       }
     >
-      <form className="invoice-form" onSubmit={(event) => event.preventDefault()}>
+      <form className="invoice-form" id={INVOICE_EDITOR_FORM_ID} onSubmit={(event) => { event.preventDefault(); submit(false) }}>
         {finalized && <div className="revision-banner"><FileCheck2 aria-hidden="true" /><div><strong>Finalisierte Rechnung</strong><p>Die Rechnungsnummer bleibt erhalten. Änderungen werden im lokalen Verlauf protokolliert und die Druckansicht wird aktualisiert.</p></div></div>}
         {errors.length > 0 && <div className="form-errors" role="alert"><strong>Bitte noch prüfen:</strong><ul>{errors.map((error) => <li key={error}>{error}</li>)}</ul></div>}
 
@@ -161,7 +165,7 @@ export function InvoiceEditor({ open, draft, guardians, students, settings, edit
           <div className="form-grid form-grid--2">
             <label className="field"><span>Einleitung</span><textarea rows={4} value={form.introText} onChange={(event) => setForm({ ...form, introText: event.target.value })} /></label>
             <label className="field"><span>Freitext / Hinweis</span><textarea rows={4} value={form.freeText} onChange={(event) => setForm({ ...form, freeText: event.target.value })} placeholder="Optional" /></label>
-            <label className="field field--full"><span>Rechtstext</span><textarea rows={2} value={form.legalText} onChange={(event) => setForm({ ...form, legalText: event.target.value })} /></label>
+            <label className="field field--full"><span>Fußzeile / Rechtstext</span><textarea rows={2} maxLength={MAX_FOOTER_TEXT_LENGTH} value={form.legalText} onChange={(event) => setForm({ ...form, legalText: event.target.value })} aria-invalid={!footerTextValid} /><small className="field-counter">{form.legalText.length} / {MAX_FOOTER_TEXT_LENGTH} Zeichen</small>{form.legalText.length >= MAX_FOOTER_TEXT_LENGTH && <small className="field-warning" role="status">Zeichenlimit erreicht. Nutze für längere rechnungsspezifische Angaben das Feld „Freitext / Hinweis“.</small>}</label>
           </div>
         </section>
       </form>

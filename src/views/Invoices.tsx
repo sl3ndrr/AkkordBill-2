@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { CalendarDays, ChevronDown, Copy, Download, Edit3, FilePlus2, Mail, MoreVertical, Printer, Search, Send, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, ChevronDown, Copy, Edit3, FilePlus2, Mail, MoreVertical, Printer, RotateCcw, Search, Send, Trash2 } from 'lucide-react'
 import type { AppState, Invoice, InvoiceStatus } from '../types'
 import { EmptyState } from '../components/EmptyState'
 import { calculateInvoiceMenuPosition, type InvoiceMenuAction, type InvoiceMenuPosition, runInvoiceMenuAction } from '../lib/invoiceMenu'
-import { billingPeriodFromItems, createReminder, effectiveStatus, euro, formatDate, formatDateLong, guardianName, invoiceTotal, mailtoUrl, statusLabel, studentName } from '../lib/utils'
+import { billingPeriodFromItems, createReminder, effectiveStatus, euro, formatDate, formatDateLong, guardianName, invoiceTotal, mailtoUrl, sortInvoices, statusLabel, studentName, type InvoiceSortKey, type SortDirection } from '../lib/utils'
 
 interface InvoicesProps {
   state: AppState
@@ -23,6 +23,7 @@ export function Invoices({ state, selectedId, onSelect, onNew, onEdit, onDuplica
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<'all' | InvoiceStatus>('all')
   const [year, setYear] = useState('all')
+  const [sort, setSort] = useState<{ key: InvoiceSortKey; direction: SortDirection }>({ key: 'date', direction: 'desc' })
   const [menu, setMenu] = useState<{ invoiceId: string; trigger: HTMLButtonElement } | null>(null)
   const [menuPosition, setMenuPosition] = useState<InvoiceMenuPosition | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -32,7 +33,7 @@ export function Invoices({ state, selectedId, onSelect, onNew, onEdit, onDuplica
 
   const filtered = useMemo(() => {
     const needle = search.trim().toLocaleLowerCase('de-DE')
-    return [...state.invoices]
+    const matches = state.invoices
       .filter((invoice) => {
         const actualStatus = effectiveStatus(invoice)
         if (status !== 'all' && actualStatus !== status) return false
@@ -41,8 +42,13 @@ export function Invoices({ state, selectedId, onSelect, onNew, onEdit, onDuplica
         const haystack = [invoice.number, billingPeriodFromItems(invoice.items, invoice.invoiceDate), guardianName(invoice, state.guardians), studentName(invoice, state.students), ...invoice.items.map((item) => item.description)].join(' ').toLocaleLowerCase('de-DE')
         return haystack.includes(needle)
       })
-      .sort((a, b) => b.invoiceDate.localeCompare(a.invoiceDate) || b.createdAt.localeCompare(a.createdAt))
-  }, [search, state.guardians, state.invoices, state.students, status, year])
+    return sortInvoices(matches, sort.key, sort.direction, state.guardians, state.students)
+  }, [search, sort.direction, sort.key, state.guardians, state.invoices, state.students, status, year])
+
+  const toggleSort = (key: InvoiceSortKey) => setSort((current) => ({
+    key,
+    direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc',
+  }))
 
   const updateMenuPosition = useCallback(() => {
     if (!menu || !menuRef.current) return
@@ -131,7 +137,7 @@ export function Invoices({ state, selectedId, onSelect, onNew, onEdit, onDuplica
             <div className="invoice-list-summary"><span>{filtered.length} Ergebnisse</span>{(search || status !== 'all' || year !== 'all') && <button className="button button--text" onClick={() => { setSearch(''); setStatus('all'); setYear('all') }}>Filter zurücksetzen</button>}</div>
             <div className="table-scroll">
               <table className="data-table invoice-list-table">
-                <thead><tr><th>Rechnung</th><th>Familie / Kind</th><th>Zeitraum</th><th>Status</th><th className="align-right">Betrag</th><th><span className="sr-only">Aktion</span></th></tr></thead>
+                <thead><tr><SortableHeader label="Rechnung" sortKey="number" sort={sort} onSort={toggleSort} /><SortableHeader label="Familie / Kind" sortKey="family" sort={sort} onSort={toggleSort} /><SortableHeader label="Zeitraum" sortKey="period" sort={sort} onSort={toggleSort} /><SortableHeader label="Status" sortKey="status" sort={sort} onSort={toggleSort} /><SortableHeader label="Betrag" sortKey="amount" sort={sort} onSort={toggleSort} alignRight /><th><span className="sr-only">Aktion</span></th></tr></thead>
                 <tbody>{filtered.map((invoice) => {
                   const actualStatus = effectiveStatus(invoice)
                   const period = billingPeriodFromItems(invoice.items, invoice.invoiceDate)
@@ -183,13 +189,30 @@ export function Invoices({ state, selectedId, onSelect, onNew, onEdit, onDuplica
           }}
         >
           <button type="button" role="menuitem" onClick={() => chooseMenuAction('edit', menuInvoice)}><Edit3 aria-hidden="true" /> Bearbeiten</button>
-          <button type="button" role="menuitem" onClick={() => chooseMenuAction('pdf', menuInvoice)}><Printer aria-hidden="true" /> PDF generieren</button>
+          <button type="button" role="menuitem" onClick={() => chooseMenuAction('pdf', menuInvoice)}><Printer aria-hidden="true" /> {menuInvoice.status === 'draft' ? 'Vorschau' : 'PDF generieren'}</button>
           <button type="button" role="menuitem" onClick={() => chooseMenuAction('duplicate', menuInvoice)}><Copy aria-hidden="true" /> Duplizieren</button>
           <button className="is-danger" type="button" role="menuitem" onClick={() => chooseMenuAction('delete', menuInvoice)}><Trash2 aria-hidden="true" /> Löschen</button>
         </div>,
         document.body,
       )}
     </div>
+  )
+}
+
+function SortableHeader({ label, sortKey, sort, onSort, alignRight = false }: {
+  label: string
+  sortKey: InvoiceSortKey
+  sort: { key: InvoiceSortKey; direction: SortDirection }
+  onSort: (key: InvoiceSortKey) => void
+  alignRight?: boolean
+}) {
+  const active = sort.key === sortKey
+  const Icon = !active ? ArrowUpDown : sort.direction === 'asc' ? ArrowUp : ArrowDown
+  const nextDirection = active && sort.direction === 'asc' ? 'absteigend' : 'aufsteigend'
+  return (
+    <th className={alignRight ? 'align-right' : undefined} aria-sort={active ? sort.direction === 'asc' ? 'ascending' : 'descending' : 'none'}>
+      <button className={`sort-button ${active ? 'is-active' : ''} ${alignRight ? 'sort-button--right' : ''}`} type="button" onClick={() => onSort(sortKey)} aria-label={`${label}: ${nextDirection} sortieren`}><span>{label}</span><Icon aria-hidden="true" /></button>
+    </th>
   )
 }
 
@@ -231,11 +254,11 @@ function InvoiceDetail({ invoice, state, onClose, onEdit, onDuplicate, onDelete,
 
       <div className="detail-actions">
         {invoice.status === 'draft' ? (
-          <><button className="button button--primary" onClick={() => onSetStatus('sent')}><Send aria-hidden="true" /> Finalisieren</button><button className="button button--tonal" onClick={onEdit}><Edit3 aria-hidden="true" /> Bearbeiten</button></>
+          <><button className="button button--primary" onClick={() => onSetStatus('sent')}><Send aria-hidden="true" /> Finalisieren</button><button className="button button--tonal" onClick={onPrint}><Printer aria-hidden="true" /> Vorschau</button><button className="button button--text" onClick={onEdit}><Edit3 aria-hidden="true" /> Bearbeiten</button></>
         ) : (
           <><button className="button button--primary" onClick={onPrint}><Printer aria-hidden="true" /> PDF / Drucken</button><button className="button button--tonal" onClick={onEdit}><Edit3 aria-hidden="true" /> Rechnung bearbeiten</button></>
         )}
-        {invoice.status !== 'draft' && <label className="status-editor"><span>Status</span><div><select value={status} onChange={(event) => onSetStatus(event.target.value as InvoiceStatus)}><option value="sent">Versendet / offen</option><option value="paid">Bezahlt</option><option value="overdue">Überfällig</option></select><ChevronDown aria-hidden="true" /></div></label>}
+        {invoice.status !== 'draft' && <div className="status-editor"><label htmlFor={`invoice-status-${invoice.id}`}>Status</label><div><select id={`invoice-status-${invoice.id}`} value={status} onChange={(event) => onSetStatus(event.target.value as InvoiceStatus)}><option value="sent">Versendet / offen</option><option value="paid">Bezahlt</option><option value="overdue">Überfällig</option></select><ChevronDown aria-hidden="true" /></div><button className="button button--text status-editor__reopen" type="button" onClick={() => onSetStatus('draft')}><RotateCcw aria-hidden="true" /> Zurück in Entwurf</button></div>}
       </div>
 
       {canRemind && (
@@ -245,15 +268,14 @@ function InvoiceDetail({ invoice, state, onClose, onEdit, onDuplicate, onDelete,
         </section>
       )}
 
-      <section className="position-summary">
+      {invoice.status === 'draft' && <section className="position-summary">
         <h3>Positionen</h3>
         {invoice.items.map((item) => <div key={item.id}><span>{item.description}<small>{formatDate(item.serviceDate)} · {item.quantity.toLocaleString('de-DE')} {item.unit}</small></span><strong>{euro.format(item.quantity * item.unitPrice)}</strong></div>)}
-      </section>
+      </section>}
 
       <footer className="invoice-detail__footer">
         <button className="button button--text" onClick={onDuplicate}><Copy aria-hidden="true" /> Duplizieren</button>
         <button className="button button--text button--danger-text" onClick={onDelete}><Trash2 aria-hidden="true" /> Löschen</button>
-        {invoice.status !== 'draft' && <button className="button button--text" onClick={onPrint}><Download aria-hidden="true" /> Vorschau</button>}
       </footer>
     </aside>
   )

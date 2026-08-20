@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { BarChart3, BookUser, FilePlus2, LayoutDashboard, Menu, MessageSquareText, Moon, ReceiptText, Search, Settings as SettingsIcon, Sun, UserRound, X } from 'lucide-react'
+import { BarChart3, BookUser, FilePlus2, LayoutDashboard, Menu, MessageSquareText, Moon, Palette, ReceiptText, Search, Settings as SettingsIcon, Sun, UserRound, X } from 'lucide-react'
 import type { AppState, AuditEvent, Guardian, Invoice, InvoiceDraft, InvoiceSnapshot, InvoiceStatus, PageKey, Settings as SettingsType, Student, ToastMessage } from './types'
 import { Dashboard } from './views/Dashboard'
 import { Invoices } from './views/Invoices'
@@ -14,7 +14,7 @@ import { ToastRegion } from './components/ToastRegion'
 import { InvoicePrint } from './components/InvoicePrint'
 import { createDemoState, createEmptyInvoiceDraft, emptyState } from './lib/defaults'
 import { clearDirectoryHandle, ensureWritePermission, loadLastBackupAt, loadState, parseBackup, readDirectoryHandle, recordBackupExport, saveState, serializeBackup, storeDirectoryHandle, writeBackupToDirectory } from './lib/storage'
-import { billingPeriodFromItems, calculateDueDate, downloadText, ensureStudentCodePattern, guardianName, invoicePdfTitle, nextInvoiceAllocation, parseDate, statusLabel, studentCodeForIndex, uid } from './lib/utils'
+import { billingPeriodFromItems, calculateDueDate, downloadText, ensureStudentCodePattern, guardianName, invoicePdfTitle, limitFooterText, nextInvoiceAllocation, parseDate, reopenInvoiceAsDraft, statusLabel, studentCodeForIndex, uid } from './lib/utils'
 import { APP_VERSION } from './version'
 
 const navItems: Array<{ key: PageKey; label: string; icon: typeof LayoutDashboard }> = [
@@ -57,10 +57,6 @@ function App() {
   const [saveStateLabel, setSaveStateLabel] = useState<'saved' | 'saving'>('saved')
   const [savedAt, setSavedAt] = useState(() => new Date())
   const [lastBackupAt, setLastBackupAt] = useState(loadLastBackupAt)
-  const [resolvedDark, setResolvedDark] = useState(() => (
-    state.settings.theme === 'dark'
-    || (state.settings.theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
-  ))
   const [folderConnected, setFolderConnected] = useState(false)
   const [folderName, setFolderName] = useState('')
   const folderHandle = useRef<FileSystemDirectoryHandle | null>(null)
@@ -117,7 +113,6 @@ function App() {
     const root = document.documentElement
     const apply = () => {
       const dark = state.settings.theme === 'dark' || (state.settings.theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
-      setResolvedDark(dark)
       root.dataset.theme = dark ? 'dark' : 'light'
       root.style.colorScheme = dark ? 'dark' : 'light'
       document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#151821' : '#f6f6fb')
@@ -271,14 +266,18 @@ function App() {
     toast(finalize ? `${createdIds.length > 1 ? `${createdIds.length} Rechnungen` : 'Rechnung'} finalisiert.` : 'Entwurf gespeichert.', 'success')
   }
 
-  const setInvoiceStatus = (invoice: Invoice, status: InvoiceStatus) => {
+  const applyInvoiceStatus = (invoice: Invoice, status: InvoiceStatus) => {
     let allocatedNumber = ''
+    const reopenedNumber = status === 'draft' ? invoice.number ?? '' : ''
     commit((current) => {
+      if (status === 'draft') {
+        return reopenInvoiceAsDraft(current, invoice.id)
+      }
       let counters = current.counters
       const invoices = current.invoices.map((candidate) => {
         if (candidate.id !== invoice.id) return candidate
         const now = new Date().toISOString()
-        if (candidate.status === 'draft' && status !== 'draft') {
+        if (candidate.status === 'draft') {
           const allocation = nextInvoiceAllocation(current, candidate.invoiceDate, candidate.studentIds)
           allocatedNumber = allocation.number
           counters = { ...counters, [allocation.counterKey]: allocation.sequence + 1 }
@@ -297,13 +296,27 @@ function App() {
           ...candidate,
           status,
           paidAt: status === 'paid' ? now : undefined,
-          sentAt: candidate.sentAt ?? (status !== 'draft' ? now : undefined),
+          sentAt: candidate.sentAt ?? now,
           updatedAt: now,
         }
       })
       return { ...current, invoices, counters }
-    }, status === 'paid' ? 'Rechnung als bezahlt markiert' : status === 'sent' ? 'Rechnung als versendet markiert' : `Rechnungsstatus auf ${statusLabel[status]} gesetzt`, 'invoice', invoice.id)
-    toast(allocatedNumber ? `Rechnung ${allocatedNumber} finalisiert.` : 'Status aktualisiert.', 'success')
+    }, status === 'draft' ? `Rechnung ${invoice.number ?? ''} in Entwurf zurückversetzt; Nummer reserviert` : status === 'paid' ? 'Rechnung als bezahlt markiert' : status === 'sent' ? 'Rechnung als versendet markiert' : `Rechnungsstatus auf ${statusLabel[status]} gesetzt`, 'invoice', invoice.id)
+    toast(reopenedNumber ? `Rechnung ${reopenedNumber} ist wieder ein Entwurf; die Nummer bleibt reserviert.` : allocatedNumber ? `Rechnung ${allocatedNumber} finalisiert.` : 'Status aktualisiert.', 'success')
+  }
+
+  const setInvoiceStatus = (invoice: Invoice, status: InvoiceStatus) => {
+    if (status === 'draft' && invoice.status !== 'draft') {
+      setConfirmation({
+        title: `Rechnung ${invoice.number ?? ''} zurück in Entwurf?`,
+        message: 'Die bisherige Rechnungsnummer bleibt dauerhaft reserviert und der eingefrorene Rechnungsstand wird entfernt. Beim erneuten Finalisieren erhält der Entwurf eine neue Nummer. Bereits versendete oder gespeicherte PDFs werden dadurch nicht geändert.',
+        label: 'In Entwurf zurücksetzen',
+        danger: true,
+        action: () => applyInvoiceStatus(invoice, 'draft'),
+      })
+      return
+    }
+    applyInvoiceStatus(invoice, status)
   }
 
   const duplicateInvoice = (invoice: Invoice) => {
@@ -347,6 +360,7 @@ function App() {
           year: invoice.year,
           invoiceDate: invoice.invoiceDate,
           deletedAt: new Date().toISOString(),
+          reason: 'deleted',
           amount: invoice.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0),
           recipient: guardianName(invoice, current.guardians),
         }, ...current.voidedInvoiceNumbers] : current.voidedInvoiceNumbers,
@@ -498,18 +512,25 @@ function App() {
     },
   })
 
-  const saveSettings = (settings: SettingsType) => commit((current) => ({
+  const saveSettings = useCallback((settings: SettingsType) => commit((current) => ({
     ...current,
-    settings: { ...settings, numberPattern: ensureStudentCodePattern(settings.numberPattern) },
-  }), 'Einstellungen aktualisiert', 'settings')
+    settings: {
+      ...settings,
+      defaultLegalText: limitFooterText(settings.defaultLegalText),
+      numberPattern: ensureStudentCodePattern(settings.numberPattern),
+    },
+  }), 'Einstellungen aktualisiert', 'settings'), [commit])
   const loadDemo = () => {
     setState(createDemoState())
     toast('Beispieldaten geladen. Du kannst sie jederzeit zurücksetzen.', 'success')
   }
   const openInvoice = (id: string) => { setSelectedInvoiceId(id); setPage('invoices') }
   const setCurrentPage = (next: PageKey) => { setPage(next); setMobileNav(false) }
-  const toggleTheme = () => saveSettings({ ...state.settings, theme: resolvedDark ? 'light' : 'dark' })
-  const themeToggleLabel = resolvedDark ? 'Hellmodus aktivieren' : 'Dunkelmodus aktivieren'
+  const nextTheme = state.settings.theme === 'system' ? 'light' : state.settings.theme === 'light' ? 'dark' : 'system'
+  const toggleTheme = () => saveSettings({ ...state.settings, theme: nextTheme })
+  const themeNames = { system: 'System', light: 'Hell', dark: 'Dunkel' } as const
+  const themeToggleLabel = `Aktuelles Farbschema: ${themeNames[state.settings.theme]}. Als Nächstes ${themeNames[nextTheme]} aktivieren.`
+  const ThemeToggleIcon = state.settings.theme === 'system' ? Palette : state.settings.theme === 'light' ? Sun : Moon
   const backupStatusLabel = lastBackupAt ? `Letztes Backup: ${backupDateFormatter.format(new Date(lastBackupAt))}` : 'Noch kein Backup'
 
   return (
@@ -528,7 +549,7 @@ function App() {
         <header className="topbar">
           <button className="icon-button mobile-only" onClick={() => setMobileNav(true)} aria-label="Navigation öffnen"><Menu aria-hidden="true" /></button>
           <button className="topbar-search" onClick={() => { setPage('invoices'); requestAnimationFrame(() => document.querySelector<HTMLInputElement>('#invoice-search')?.focus()) }}><Search aria-hidden="true" /><span>Rechnungen durchsuchen</span></button>
-          <div className="topbar__end"><div className="topbar__storage-status"><span className={`save-indicator ${saveStateLabel === 'saving' ? 'is-saving' : ''}`}><i />{saveStateLabel === 'saving' ? 'Speichert …' : `Gespeichert ${savedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`}</span><span className="backup-indicator">{backupStatusLabel}</span></div><button className="icon-button" onClick={toggleTheme} aria-label={themeToggleLabel} title={themeToggleLabel}>{resolvedDark ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}</button><button className="button button--primary topbar-new" onClick={openNewInvoice}><FilePlus2 aria-hidden="true" /><span>Neue Rechnung</span></button></div>
+          <div className="topbar__end"><div className="topbar__storage-status"><span className={`save-indicator ${saveStateLabel === 'saving' ? 'is-saving' : ''}`}><i />{saveStateLabel === 'saving' ? 'Speichert …' : `Gespeichert ${savedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`}</span><span className="backup-indicator">{backupStatusLabel}</span></div><button className="icon-button" onClick={toggleTheme} aria-label={themeToggleLabel} title={themeToggleLabel}><ThemeToggleIcon aria-hidden="true" /></button><button className="button button--primary topbar-new" onClick={openNewInvoice}><FilePlus2 aria-hidden="true" /><span>Neue Rechnung</span></button></div>
         </header>
 
         <main id="main-content" tabIndex={-1}>
