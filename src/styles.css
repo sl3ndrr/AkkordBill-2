@@ -132,10 +132,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .brand strong { font-size: 17px; letter-spacing: -0.02em; }
 .brand small { margin-top: 1px; color: var(--on-surface-variant); font-size: 11px; font-weight: 650; letter-spacing: .12em; text-transform: uppercase; }
 .sidebar nav { display: grid; gap: 6px; margin-top: 22px; }
-.sidebar nav button { position: relative; display: flex; min-height: 50px; align-items: center; gap: 14px; padding: 0 16px; border: 0; border-radius: 18px; background: transparent; color: var(--on-surface-variant); font-size: 14px; font-weight: 620; cursor: pointer; transition: color var(--motion-short) var(--ease-standard), background var(--motion-normal) var(--ease-standard), border-radius var(--motion-normal) var(--ease-standard), transform var(--motion-short) var(--ease-standard); }
-.sidebar nav button::before { position: absolute; inset: 0; border-radius: inherit; background: currentColor; content: ''; opacity: 0; transition: opacity var(--motion-short); }
-.sidebar nav button:hover { background: var(--surface-container-high); color: var(--on-surface); }
-.sidebar nav button:active { transform: scale(.985); }
+.sidebar nav button, .sidebar nav a { position: relative; display: flex; min-height: 50px; align-items: center; gap: 14px; padding: 0 16px; border: 0; border-radius: 18px; background: transparent; color: var(--on-surface-variant); font-size: 14px; font-weight: 620; text-decoration: none; cursor: pointer; transition: color var(--motion-short) var(--ease-standard), background var(--motion-normal) var(--ease-standard), border-radius var(--motion-normal) var(--ease-standard), transform var(--motion-short) var(--ease-standard); }
+.sidebar nav button::before, .sidebar nav a::before { position: absolute; inset: 0; border-radius: inherit; background: currentColor; content: ''; opacity: 0; transition: opacity var(--motion-short); }
+.sidebar nav button:hover, .sidebar nav a:hover { background: var(--surface-container-high); color: var(--on-surface); }
+.sidebar nav button:active, .sidebar nav a:active { transform: scale(.985); }
 .sidebar nav button.is-active { border-radius: 14px 22px 22px 14px; background: var(--primary-container); color: var(--on-primary-container); }
 .sidebar nav button.is-active svg { stroke-width: 2.4; }
 .sidebar nav button b { display: grid; min-width: 22px; height: 22px; margin-left: auto; place-items: center; border-radius: 50%; background: var(--tertiary-container); color: var(--on-tertiary-container); font-size: 11px; }
@@ -617,8 +617,8 @@ kbd { display: inline-flex; min-width: 24px; height: 24px; margin-left: auto; al
 @media (max-width: 1120px) {
   .sidebar { width: 88px; align-items: center; padding-inline: 10px; }
   .brand { padding-inline: 0; }
-  .brand > div, .sidebar nav button span, .sidebar nav button b, .sidebar__privacy div, .sidebar__version, .sidebar__help { display: none; }
-  .sidebar nav button { width: 56px; padding: 0; justify-content: center; }
+  .brand > div, .sidebar nav button span, .sidebar nav a span, .sidebar nav button b, .sidebar__privacy div, .sidebar__version, .sidebar__help { display: none; }
+  .sidebar nav button, .sidebar nav a { width: 56px; padding: 0; justify-content: center; }
   .sidebar__privacy { padding: 10px; }
   .app-main { margin-left: 88px; }
   .dashboard-grid, .people-layout { grid-template-columns: 1fr; }
@@ -633,9 +633,9 @@ kbd { display: inline-flex; min-width: 24px; height: 24px; margin-left: auto; al
   .sidebar { z-index: 80; width: min(300px, 88vw); align-items: stretch; padding: 18px 16px; transform: translateX(-105%); box-shadow: var(--shadow-3); transition: transform var(--motion-long) var(--ease-emphasized); }
   .sidebar--open { transform: none; }
   .brand { padding-inline: 8px; }
-  .brand > div, .sidebar nav button span, .sidebar nav button b, .sidebar__privacy div, .sidebar__help { display: grid; }
+  .brand > div, .sidebar nav button span, .sidebar nav a span, .sidebar nav button b, .sidebar__privacy div, .sidebar__help { display: grid; }
   .brand .mobile-only { margin-left: auto; }
-  .sidebar nav button { width: 100%; padding: 0 16px; justify-content: flex-start; }
+  .sidebar nav button, .sidebar nav a { width: 100%; padding: 0 16px; justify-content: flex-start; }
   .sidebar__privacy { padding: 14px 12px; }
   .sidebar__version { display: block; }
   .sidebar__help { display: flex; }

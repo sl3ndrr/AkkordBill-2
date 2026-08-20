@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { BarChart3, BookUser, CircleHelp, FilePlus2, LayoutDashboard, Menu, Moon, ReceiptText, Search, Settings as SettingsIcon, Sun, X } from 'lucide-react'
+import { BarChart3, BookUser, CircleHelp, FilePlus2, LayoutDashboard, Menu, MessageSquareText, Moon, ReceiptText, Search, Settings as SettingsIcon, Sun, X } from 'lucide-react'
 import type { AppState, AuditEvent, Guardian, Invoice, InvoiceDraft, InvoiceSnapshot, InvoiceStatus, PageKey, Settings as SettingsType, Student, ToastMessage } from './types'
 import { Dashboard } from './views/Dashboard'
 import { Invoices } from './views/Invoices'
@@ -22,6 +22,8 @@ const navItems: Array<{ key: PageKey; label: string; icon: typeof LayoutDashboar
   { key: 'reports', label: 'Auswertung', icon: BarChart3 },
   { key: 'settings', label: 'Einstellungen', icon: SettingsIcon },
 ]
+
+const FEEDBACK_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdTwAUVjtqiBcB572S5lR7OD71TFxW8CFuCS9VQj6Inpo9wgw/viewform?usp=header'
 
 interface Confirmation {
   title: string
@@ -513,7 +515,7 @@ function App() {
       <a href="#main-content" className="skip-link">Zum Inhalt springen</a>
       <aside className={`sidebar ${mobileNav ? 'sidebar--open' : ''}`}>
         <div className="brand"><span className="brand__mark" aria-hidden="true">🧾</span><div><strong>RiffRechnung</strong><small>Rechnungen</small></div><button className="icon-button mobile-only" onClick={() => setMobileNav(false)} aria-label="Navigation schließen"><X aria-hidden="true" /></button></div>
-        <nav aria-label="Hauptnavigation">{navItems.map(({ key, label, icon: Icon }) => <button className={page === key ? 'is-active' : ''} aria-current={page === key ? 'page' : undefined} key={key} onClick={() => setCurrentPage(key)}><Icon aria-hidden="true" /><span>{label}</span>{key === 'invoices' && state.invoices.filter((invoice) => invoice.status === 'draft').length > 0 && <b>{state.invoices.filter((invoice) => invoice.status === 'draft').length}</b>}</button>)}</nav>
+        <nav aria-label="Hauptnavigation">{navItems.map(({ key, label, icon: Icon }) => <button className={page === key ? 'is-active' : ''} aria-current={page === key ? 'page' : undefined} key={key} onClick={() => setCurrentPage(key)}><Icon aria-hidden="true" /><span>{label}</span>{key === 'invoices' && state.invoices.filter((invoice) => invoice.status === 'draft').length > 0 && <b>{state.invoices.filter((invoice) => invoice.status === 'draft').length}</b>}</button>)}<a href={FEEDBACK_URL} target="_blank" rel="noreferrer" aria-label="Feedbackformular öffnen (neuer Tab)"><MessageSquareText aria-hidden="true" /><span>Feedback</span></a></nav>
         <div className="sidebar__privacy"><span><ShieldDot /></span><div><strong>Nur auf diesem Gerät</strong><small>Keine automatische Cloud-Übertragung</small></div></div>
         <span className="sidebar__version">Version {APP_VERSION}</span>
         <button className="sidebar__help" onClick={() => toast('Tastatur: N = neue Rechnung, / = Suche.', 'info')}><CircleHelp aria-hidden="true" /> Hilfe & Tastatur</button>
