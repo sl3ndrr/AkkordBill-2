@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { BarChart3, BookUser, CircleHelp, FilePlus2, LayoutDashboard, Menu, Moon, ReceiptText, Search, Settings as SettingsIcon, Sun, X } from 'lucide-react'
+import { BarChart3, BookUser, CircleHelp, FilePlus2, LayoutDashboard, Menu, MessageSquareText, Moon, ReceiptText, Search, Settings as SettingsIcon, Sun, UserRound, X } from 'lucide-react'
 import type { AppState, AuditEvent, Guardian, Invoice, InvoiceDraft, InvoiceSnapshot, InvoiceStatus, PageKey, Settings as SettingsType, Student, ToastMessage } from './types'
 import { Dashboard } from './views/Dashboard'
 import { Invoices } from './views/Invoices'
@@ -7,6 +7,7 @@ import { InvoiceEditor } from './views/InvoiceEditor'
 import { People } from './views/People'
 import { Reports } from './views/Reports'
 import { Settings } from './views/Settings'
+import { About } from './views/About'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { ToastRegion } from './components/ToastRegion'
 import { InvoicePrint } from './components/InvoicePrint'
@@ -20,8 +21,11 @@ const navItems: Array<{ key: PageKey; label: string; icon: typeof LayoutDashboar
   { key: 'invoices', label: 'Rechnungen', icon: ReceiptText },
   { key: 'people', label: 'Familien', icon: BookUser },
   { key: 'reports', label: 'Auswertung', icon: BarChart3 },
+  { key: 'about', label: 'Über mich', icon: UserRound },
   { key: 'settings', label: 'Einstellungen', icon: SettingsIcon },
 ]
+
+const FEEDBACK_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdTwAUVjtqiBcB572S5lR7OD71TFxW8CFuCS9VQj6Inpo9wgw/viewform?usp=header'
 
 interface Confirmation {
   title: string
@@ -50,7 +54,10 @@ function App() {
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
   const [saveStateLabel, setSaveStateLabel] = useState<'saved' | 'saving'>('saved')
   const [savedAt, setSavedAt] = useState(() => new Date())
-  const [resolvedDark, setResolvedDark] = useState(false)
+  const [resolvedDark, setResolvedDark] = useState(() => (
+    state.settings.theme === 'dark'
+    || (state.settings.theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
+  ))
   const [folderConnected, setFolderConnected] = useState(false)
   const [folderName, setFolderName] = useState('')
   const folderHandle = useRef<FileSystemDirectoryHandle | null>(null)
@@ -421,7 +428,7 @@ function App() {
   }
 
   const exportBackup = () => {
-    downloadText(`gitarrenrechnungen-backup-${new Date().toISOString().slice(0, 10)}.json`, serializeBackup(state))
+    downloadText(`riffrechnung-backup-${new Date().toISOString().slice(0, 10)}.json`, serializeBackup(state))
     toast('JSON-Backup heruntergeladen.', 'success')
   }
 
@@ -502,14 +509,15 @@ function App() {
   }
   const openInvoice = (id: string) => { setSelectedInvoiceId(id); setPage('invoices') }
   const setCurrentPage = (next: PageKey) => { setPage(next); setMobileNav(false) }
-  const toggleTheme = () => saveSettings({ ...state.settings, theme: document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark' })
+  const toggleTheme = () => saveSettings({ ...state.settings, theme: resolvedDark ? 'light' : 'dark' })
+  const themeToggleLabel = resolvedDark ? 'Hellmodus aktivieren' : 'Dunkelmodus aktivieren'
 
   return (
     <div className="app-shell">
       <a href="#main-content" className="skip-link">Zum Inhalt springen</a>
       <aside className={`sidebar ${mobileNav ? 'sidebar--open' : ''}`}>
-        <div className="brand"><span className="brand__mark"><span /><span /><span /></span><div><strong>Saitenweise</strong><small>Rechnungen</small></div><button className="icon-button mobile-only" onClick={() => setMobileNav(false)} aria-label="Navigation schließen"><X aria-hidden="true" /></button></div>
-        <nav aria-label="Hauptnavigation">{navItems.map(({ key, label, icon: Icon }) => <button className={page === key ? 'is-active' : ''} aria-current={page === key ? 'page' : undefined} key={key} onClick={() => setCurrentPage(key)}><Icon aria-hidden="true" /><span>{label}</span>{key === 'invoices' && state.invoices.filter((invoice) => invoice.status === 'draft').length > 0 && <b>{state.invoices.filter((invoice) => invoice.status === 'draft').length}</b>}</button>)}</nav>
+        <div className="brand"><span className="brand__mark" aria-hidden="true">🧾</span><div><strong>RiffRechnung</strong><small>Rechnungen</small></div><button className="icon-button mobile-only" onClick={() => setMobileNav(false)} aria-label="Navigation schließen"><X aria-hidden="true" /></button></div>
+        <nav aria-label="Hauptnavigation">{navItems.map(({ key, label, icon: Icon }) => <button className={page === key ? 'is-active' : ''} aria-current={page === key ? 'page' : undefined} key={key} onClick={() => setCurrentPage(key)}><Icon aria-hidden="true" /><span>{label}</span>{key === 'invoices' && state.invoices.filter((invoice) => invoice.status === 'draft').length > 0 && <b>{state.invoices.filter((invoice) => invoice.status === 'draft').length}</b>}</button>)}<a href={FEEDBACK_URL} target="_blank" rel="noreferrer" aria-label="Feedbackformular öffnen (neuer Tab)"><MessageSquareText aria-hidden="true" /><span>Feedback</span></a></nav>
         <div className="sidebar__privacy"><span><ShieldDot /></span><div><strong>Nur auf diesem Gerät</strong><small>Keine automatische Cloud-Übertragung</small></div></div>
         <span className="sidebar__version">Version {APP_VERSION}</span>
         <button className="sidebar__help" onClick={() => toast('Tastatur: N = neue Rechnung, / = Suche.', 'info')}><CircleHelp aria-hidden="true" /> Hilfe & Tastatur</button>
@@ -520,7 +528,7 @@ function App() {
         <header className="topbar">
           <button className="icon-button mobile-only" onClick={() => setMobileNav(true)} aria-label="Navigation öffnen"><Menu aria-hidden="true" /></button>
           <button className="topbar-search" onClick={() => { setPage('invoices'); requestAnimationFrame(() => document.querySelector<HTMLInputElement>('#invoice-search')?.focus()) }}><Search aria-hidden="true" /><span>Rechnungen durchsuchen</span><kbd>/</kbd></button>
-          <div className="topbar__end"><span className={`save-indicator ${saveStateLabel === 'saving' ? 'is-saving' : ''}`}><i />{saveStateLabel === 'saving' ? 'Speichert …' : `Gespeichert ${savedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`}</span><button className="icon-button" onClick={toggleTheme} aria-label="Farbschema wechseln">{resolvedDark ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}</button><button className="button button--primary topbar-new" onClick={openNewInvoice}><FilePlus2 aria-hidden="true" /><span>Neue Rechnung</span></button></div>
+          <div className="topbar__end"><span className={`save-indicator ${saveStateLabel === 'saving' ? 'is-saving' : ''}`}><i />{saveStateLabel === 'saving' ? 'Speichert …' : `Gespeichert ${savedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`}</span><button className="icon-button" onClick={toggleTheme} aria-label={themeToggleLabel} title={themeToggleLabel}>{resolvedDark ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}</button><button className="button button--primary topbar-new" onClick={openNewInvoice}><FilePlus2 aria-hidden="true" /><span>Neue Rechnung</span></button></div>
         </header>
 
         <main id="main-content" tabIndex={-1}>
@@ -528,6 +536,7 @@ function App() {
           {page === 'invoices' && <Invoices state={state} selectedId={selectedInvoiceId} onSelect={setSelectedInvoiceId} onNew={openNewInvoice} onEdit={editInvoice} onDuplicate={duplicateInvoice} onDelete={requestDeleteInvoice} onSetStatus={setInvoiceStatus} onPrint={print} onToast={toast} />}
           {page === 'people' && <People state={state} onSaveGuardian={saveGuardian} onSaveStudent={saveStudent} onDeleteGuardian={deleteGuardian} onDeleteStudent={deleteStudent} />}
           {page === 'reports' && <Reports state={state} />}
+          {page === 'about' && <About />}
           {page === 'settings' && <Settings state={state} folderSupported={Boolean(window.showDirectoryPicker)} folderConnected={folderConnected} folderName={folderName} onSave={saveSettings} onExport={exportBackup} onImport={importBackup} onConnectFolder={connectFolder} onDisconnectFolder={disconnectFolder} onBackupNow={backupNow} onReset={resetAll} />}
         </main>
       </div>

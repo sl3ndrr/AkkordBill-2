@@ -73,7 +73,7 @@ export function saveState(state: AppState): void {
 
 export function serializeBackup(state: AppState): string {
   return JSON.stringify({
-    app: 'gitarrenrechnungen',
+    app: 'riffrechnung',
     exportedAt: new Date().toISOString(),
     schemaVersion: state.schemaVersion,
     data: state,
@@ -150,7 +150,7 @@ export async function ensureWritePermission(handle: FileSystemDirectoryHandle, r
 }
 
 export async function writeBackupToDirectory(handle: FileSystemDirectoryHandle, state: AppState): Promise<void> {
-  const fileHandle = await handle.getFileHandle('gitarrenrechnungen-backup.json', { create: true })
+  const fileHandle = await handle.getFileHandle('riffrechnung-backup.json', { create: true })
   const writable = await fileHandle.createWritable()
   await writable.write(serializeBackup(state))
   await writable.close()
