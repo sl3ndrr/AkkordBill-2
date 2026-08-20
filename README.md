@@ -1,4 +1,4 @@
-# Saitenweise – lokale Rechnungsverwaltung
+# RiffRechnung – lokale Rechnungsverwaltung
 
 Eine vollständig clientseitige Web-App für Rechnungen rund um Gitarrenunterricht. Sie läuft als statische Vite-App auf GitHub Pages; es gibt weder Server noch Datenbank, Benutzerkonto, Tracking oder externe API-Aufrufe.
 
@@ -61,7 +61,7 @@ Der GiroCode füllt Empfänger, IBAN, Betrag und Rechnungsnummer in unterstützt
 
 Unter **Einstellungen → Backup & Import** gibt es immer einen vollständigen JSON-Export und -Import. Vor einem Import wird der Inhalt validiert und das vollständige Ersetzen des lokalen Stands bestätigt.
 
-Optional kann die App über die **File System Access API** einen lokalen Ordner auswählen. Nach der einmaligen Freigabe schreibt sie dort bei Änderungen die Datei `gitarrenrechnungen-backup.json`; „Backup jetzt“ stößt dies zusätzlich manuell an. Diese API ist derzeit vor allem in Chromium-Browsern wie Chrome und Edge verfügbar. Firefox und Safari unterstützen die Ordnerauswahl nicht vollständig – dort bleibt der normale JSON-Download.
+Optional kann die App über die **File System Access API** einen lokalen Ordner auswählen. Nach der einmaligen Freigabe schreibt sie dort bei Änderungen die Datei `riffrechnung-backup.json`; „Backup jetzt“ stößt dies zusätzlich manuell an. Diese API ist derzeit vor allem in Chromium-Browsern wie Chrome und Edge verfügbar. Firefox und Safari unterstützen die Ordnerauswahl nicht vollständig – dort bleibt der normale JSON-Download.
 
 Das ist **keine Google-Drive-, Dropbox- oder sonstige Cloud-Integration**. Wenn der gewählte Ordner zufällig von einer Desktop-App synchronisiert wird, lädt ausschließlich diese installierte Software die Datei später hoch. Die Web-App kennt den Cloud-Dienst nicht und kommuniziert nicht mit dessen Servern.
 

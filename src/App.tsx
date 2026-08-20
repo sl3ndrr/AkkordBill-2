@@ -421,7 +421,7 @@ function App() {
   }
 
   const exportBackup = () => {
-    downloadText(`gitarrenrechnungen-backup-${new Date().toISOString().slice(0, 10)}.json`, serializeBackup(state))
+    downloadText(`riffrechnung-backup-${new Date().toISOString().slice(0, 10)}.json`, serializeBackup(state))
     toast('JSON-Backup heruntergeladen.', 'success')
   }
 
@@ -508,7 +508,7 @@ function App() {
     <div className="app-shell">
       <a href="#main-content" className="skip-link">Zum Inhalt springen</a>
       <aside className={`sidebar ${mobileNav ? 'sidebar--open' : ''}`}>
-        <div className="brand"><span className="brand__mark"><span /><span /><span /></span><div><strong>Saitenweise</strong><small>Rechnungen</small></div><button className="icon-button mobile-only" onClick={() => setMobileNav(false)} aria-label="Navigation schließen"><X aria-hidden="true" /></button></div>
+        <div className="brand"><span className="brand__mark"><span /><span /><span /></span><div><strong>RiffRechnung</strong><small>Rechnungen</small></div><button className="icon-button mobile-only" onClick={() => setMobileNav(false)} aria-label="Navigation schließen"><X aria-hidden="true" /></button></div>
         <nav aria-label="Hauptnavigation">{navItems.map(({ key, label, icon: Icon }) => <button className={page === key ? 'is-active' : ''} aria-current={page === key ? 'page' : undefined} key={key} onClick={() => setCurrentPage(key)}><Icon aria-hidden="true" /><span>{label}</span>{key === 'invoices' && state.invoices.filter((invoice) => invoice.status === 'draft').length > 0 && <b>{state.invoices.filter((invoice) => invoice.status === 'draft').length}</b>}</button>)}</nav>
         <div className="sidebar__privacy"><span><ShieldDot /></span><div><strong>Nur auf diesem Gerät</strong><small>Keine automatische Cloud-Übertragung</small></div></div>
         <span className="sidebar__version">Version {APP_VERSION}</span>
