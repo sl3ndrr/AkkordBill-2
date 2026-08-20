@@ -6,10 +6,11 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import type { Guardian, Invoice, Student } from '../src/types'
 import changelog from '../src/content/changelog.json'
 import { InvoicePrint } from '../src/components/InvoicePrint'
+import { Dashboard } from '../src/views/Dashboard'
 import { createDemoState, defaultSettings, emptyState } from '../src/lib/defaults'
 import { calculateInvoiceMenuPosition, type InvoiceMenuAction, runInvoiceMenuAction } from '../src/lib/invoiceMenu'
 import { loadLastBackupAt, loadState, parseBackup, recordBackupExport, saveState, serializeBackup } from '../src/lib/storage'
-import { applyLessonType, billingPeriodFromItems, buildEpcPayload, buildInvoicePrintPageStyle, calculateDueDate, createLessonItem, effectiveStatus, ensureStudentCodePattern, footerTextForPrint, formatDateLong, formatInvoiceNumber, invoicePdfTitle, isFooterTextWithinLimit, isValidIban, limitFooterText, MAX_FOOTER_TEXT_LENGTH, nextInvoiceAllocation, reopenInvoiceAsDraft, sortInvoices, sortPeople, studentCodeForIndex } from '../src/lib/utils'
+import { applyLessonType, billingPeriodFromItems, buildEpcPayload, buildInvoicePrintPageStyle, calculateDueDate, createLessonItem, effectiveStatus, ensureStudentCodePattern, footerTextForPrint, formatDateLong, formatInvoiceNumber, invoicePdfTitle, isFooterTextWithinLimit, isInvoiceSetupComplete, isValidIban, limitFooterText, MAX_FOOTER_TEXT_LENGTH, nextInvoiceAllocation, reopenInvoiceAsDraft, sortInvoices, sortPeople, studentCodeForIndex } from '../src/lib/utils'
 import { APP_VERSION } from '../src/version'
 
 const student = (id: string, name: string, billingCode: string): Student => ({
@@ -138,6 +139,56 @@ test('zurückgesetzte Rechnungen werden echte Entwürfe und verbrauchte Nummern 
 test('IBAN-Prüfsumme wird validiert', () => {
   assert.equal(isValidIban('DE02 1203 0000 0000 2020 51'), true)
   assert.equal(isValidIban('DE02 1203 0000 0000 2020 52'), false)
+})
+
+test('Rechnungsstart verlangt Absendernamen und eine gültige IBAN', () => {
+  const settings = structuredClone(defaultSettings)
+  assert.equal(isInvoiceSetupComplete(settings), false)
+  settings.issuer.name = '  Gitarrenstudio Beispiel  '
+  settings.iban = 'DE02 1203 0000 0000 2020 52'
+  assert.equal(isInvoiceSetupComplete(settings), false)
+  settings.iban = 'DE02 1203 0000 0000 2020 51'
+  assert.equal(isInvoiceSetupComplete(settings), true)
+
+  const appSource = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
+  const invoiceGuard = appSource.slice(appSource.indexOf('const openNewInvoice'), appSource.indexOf('const editInvoice'))
+  assert.ok(invoiceGuard.indexOf('isInvoiceSetupComplete') < invoiceGuard.indexOf('!state.students.length'))
+  assert.match(invoiceGuard, /setPage\('settings'\)/)
+  assert.match(invoiceGuard, /setPage\('people'\)/)
+
+  const invoiceSource = readFileSync(new URL('../src/views/Invoices.tsx', import.meta.url), 'utf8')
+  assert.equal(invoiceSource.match(/onClick=\{onNew\}/g)?.length, 2)
+})
+
+test('Onboarding priorisiert die Einrichtung und hält den Demo-Zugang sichtbar', () => {
+  const renderDashboard = (state = emptyState()) => renderToStaticMarkup(createElement(Dashboard, {
+    state,
+    onNavigate: () => undefined,
+    onNewInvoice: () => undefined,
+    onLoadDemo: () => undefined,
+    onOpenInvoice: () => undefined,
+  }))
+
+  const emptyMarkup = renderDashboard()
+  assert.match(emptyMarkup, /0 von 2 Schritten abgeschlossen/)
+  assert.ok(emptyMarkup.indexOf('Absender &amp; Konto') < emptyMarkup.indexOf('Familie anlegen'))
+  assert.match(emptyMarkup, /Lieber erst mit Beispieldaten testen\?/)
+  assert.match(emptyMarkup, /Mit Beispieldaten starten/)
+
+  const issuerReady = emptyState()
+  issuerReady.settings.issuer.name = 'Gitarrenstudio Beispiel'
+  issuerReady.settings.iban = 'DE02 1203 0000 0000 2020 51'
+  assert.match(renderDashboard(issuerReady), /1 von 2 Schritten abgeschlossen/)
+
+  const familyReady = emptyState()
+  familyReady.students = [student('student-a', 'Anna', 'a')]
+  assert.match(renderDashboard(familyReady), /1 von 2 Schritten abgeschlossen/)
+
+  issuerReady.students = [student('student-a', 'Anna', 'a')]
+  assert.doesNotMatch(renderDashboard(issuerReady), /von 2 Schritten abgeschlossen/)
+
+  const source = readFileSync(new URL('../src/views/Dashboard.tsx', import.meta.url), 'utf8')
+  assert.equal(source.match(/onClick=\{onLoadDemo\}/g)?.length, 2)
 })
 
 test('EPC-Payload enthält Version, Betrag und Rechnungsnummer', () => {
@@ -458,9 +509,14 @@ test('Modal-Formulare verknüpfen ihre Footer-Buttons mit dem nativen Submit', (
 
 test('Kinderliste startet mit aktivem Aktiv-Filter', () => {
   const source = readFileSync(new URL('../src/views/People.tsx', import.meta.url), 'utf8')
+  const stylesheet = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
   assert.match(source, /\[onlyActiveStudents, setOnlyActiveStudents\] = useState\(true\)/)
   assert.match(source, /Nur aktive Kinder anzeigen/)
   assert.match(source, /!onlyActiveStudents \|\| student\.active/)
+  assert.match(source, /switch-row switch-row--compact people-active-filter[\s\S]*type="checkbox"[\s\S]*<i \/>/)
+  assert.match(stylesheet, /\.switch-row input:checked \+ i \{[^}]*background: var\(--primary\);/)
+  assert.match(stylesheet, /\.switch-row input:checked \+ i::after \{[^}]*background: var\(--on-primary\);[^}]*transform: translate\(20px, -2px\);/)
+  assert.doesNotMatch(stylesheet, /\.people-active-filter > i \{[^}]*transform:/)
 })
 
 test('Zeitpunkt des letzten Backup-Exports wird persistiert', () => {
