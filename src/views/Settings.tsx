@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ArchiveRestore, CheckCircle2, CloudOff, Download, FileJson, FolderSync, HardDrive, History, Moon, Palette, Save, ShieldCheck, Sun, Upload } from 'lucide-react'
 import type { AppState, Settings as SettingsType, ThemeMode } from '../types'
-import { formatInvoiceNumber, formatIban, isValidIban } from '../lib/utils'
+import { formatInvoiceNumber, formatIban, isFooterTextWithinLimit, isValidIban, MAX_FOOTER_TEXT_LENGTH } from '../lib/utils'
 
 interface SettingsProps {
   state: AppState
@@ -21,8 +21,11 @@ export function Settings({ state, folderSupported, folderConnected, folderName, 
   const [form, setForm] = useState<SettingsType>(state.settings)
   const [saved, setSaved] = useState(false)
   useEffect(() => setForm(state.settings), [state.settings])
+  const footerTextValid = isFooterTextWithinLimit(form.defaultLegalText)
+  const footerTextLimitReached = form.defaultLegalText.length >= MAX_FOOTER_TEXT_LENGTH
 
   const save = () => {
+    if (!footerTextValid) return
     onSave(form)
     setSaved(true)
     window.setTimeout(() => setSaved(false), 1800)
@@ -37,7 +40,7 @@ export function Settings({ state, folderSupported, folderConnected, folderName, 
     <div className="page settings-page">
       <header className="page-header">
         <div><p className="eyebrow">Konfiguration</p><h1>Einstellungen</h1><p>Absender, Konto, Nummernkreis, Darstellung und Datensicherung.</p></div>
-        <button className={`button ${saved ? 'button--success' : 'button--primary'} button--large`} onClick={save}>{saved ? <CheckCircle2 aria-hidden="true" /> : <Save aria-hidden="true" />}{saved ? 'Gespeichert' : 'Änderungen speichern'}</button>
+        <button className={`button ${saved ? 'button--success' : 'button--primary'} button--large`} onClick={save} disabled={!footerTextValid}>{saved ? <CheckCircle2 aria-hidden="true" /> : <Save aria-hidden="true" />}{saved ? 'Gespeichert' : 'Änderungen speichern'}</button>
       </header>
 
       <div className="settings-layout">
@@ -75,7 +78,7 @@ export function Settings({ state, folderSupported, folderConnected, folderName, 
               <label className="field"><span>Standardpreis Solo</span><div className="input-with-suffix"><input type="number" min="0" step="0.01" value={form.privateRate} onChange={(event) => setForm({ ...form, privateRate: Number(event.target.value) })} /><span>€</span></div><small>Je Einheit/Stunde für neue Positionen</small></label>
               <label className="field"><span>Standardpreis Duo</span><div className="input-with-suffix"><input type="number" min="0" step="0.01" value={form.duoRate} onChange={(event) => setForm({ ...form, duoRate: Number(event.target.value) })} /><span>€</span></div><small>Je Einheit/Stunde für neue Positionen</small></label>
               <label className="switch-row switch-row--compact"><span><strong>Jährlich neu zählen</strong><small>Je Kalenderjahr bei 1 beginnen</small></span><input type="checkbox" checked={form.resetNumberAnnually} onChange={(event) => setForm({ ...form, resetNumberAnnually: event.target.checked })} /><i /></label>
-              <label className="field field--full"><span>Standard-Rechtstext</span><textarea rows={3} value={form.defaultLegalText} onChange={(event) => setForm({ ...form, defaultLegalText: event.target.value })} /><small>Voreingestellt ist § 19 UStG ohne Umsatzsteuerausweis. Bitte an deine tatsächliche steuerliche Situation anpassen.</small></label>
+              <label className="field field--full"><span>Standard-Fußzeile / Rechtstext</span><textarea rows={3} maxLength={MAX_FOOTER_TEXT_LENGTH} value={form.defaultLegalText} onChange={(event) => setForm({ ...form, defaultLegalText: event.target.value })} aria-invalid={!footerTextValid} aria-describedby="footer-text-help footer-text-count" /><small id="footer-text-help">Der Text erscheint links neben der Seitenzahl und darf höchstens zwei Zeilen belegen. „Privatrechnung“ ist frei editierbar; bitte die Formulierung an deine steuerliche Situation anpassen.</small><small className="field-counter" id="footer-text-count">{form.defaultLegalText.length} / {MAX_FOOTER_TEXT_LENGTH} Zeichen</small>{footerTextLimitReached && <small className="field-warning" role="status">Zeichenlimit erreicht. Für längere oder individuelle Texte nutze in der Rechnung das Feld „Freitext / Hinweis“.</small>}</label>
             </div>
             <div className="info-banner"><FileJson aria-hidden="true" /><p>Das erste angelegte Kind erhält <strong>a</strong>, das zweite <strong>b</strong> usw. Bei einer gemeinsamen Rechnung für mehrere Kinder werden die Kennzeichen kombiniert, zum Beispiel <strong>ab</strong>. Das Kennzeichen wird beim Löschen oder Bearbeiten nicht verschoben.</p></div>
           </section>

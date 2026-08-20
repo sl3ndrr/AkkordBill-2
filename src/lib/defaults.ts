@@ -18,7 +18,7 @@ export const defaultSettings: Settings = {
   numberPattern: '{YYYY}-{K}-{NNNN}',
   resetNumberAnnually: true,
   paymentTermDays: 14,
-  defaultLegalText: 'Umsatzsteuerbefreit gemäß § 19 UStG (Kleinunternehmerregelung).',
+  defaultLegalText: 'Privatrechnung | Umsatzsteuerbefreit gemäß § 19 UStG (Kleinunternehmerregelung).',
   theme: 'system',
   reducedMotion: false,
 }

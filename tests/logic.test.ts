@@ -9,7 +9,7 @@ import { InvoicePrint } from '../src/components/InvoicePrint'
 import { createDemoState, defaultSettings, emptyState } from '../src/lib/defaults'
 import { calculateInvoiceMenuPosition, type InvoiceMenuAction, runInvoiceMenuAction } from '../src/lib/invoiceMenu'
 import { loadLastBackupAt, loadState, parseBackup, recordBackupExport, saveState, serializeBackup } from '../src/lib/storage'
-import { applyLessonType, billingPeriodFromItems, buildEpcPayload, calculateDueDate, createLessonItem, effectiveStatus, ensureStudentCodePattern, formatDateLong, formatInvoiceNumber, invoicePdfTitle, isValidIban, nextInvoiceAllocation, studentCodeForIndex } from '../src/lib/utils'
+import { applyLessonType, billingPeriodFromItems, buildEpcPayload, buildInvoicePrintPageStyle, calculateDueDate, createLessonItem, effectiveStatus, ensureStudentCodePattern, footerTextForPrint, formatDateLong, formatInvoiceNumber, invoicePdfTitle, isFooterTextWithinLimit, isValidIban, limitFooterText, MAX_FOOTER_TEXT_LENGTH, nextInvoiceAllocation, studentCodeForIndex } from '../src/lib/utils'
 import { APP_VERSION } from '../src/version'
 
 const student = (id: string, name: string, billingCode: string): Student => ({
@@ -161,7 +161,16 @@ test('PDF-Titel enthält Rechnungsnummer und dateisicheren Kindesnamen', () => {
   assert.equal(invoicePdfTitle(testInvoice, [student('student-a', 'Lina / Winter', 'a')]), 'Rechnung 2026-b-0002 - Lina - Winter')
 })
 
-test('Druckrechnungen unterschiedlicher Länge führen die Fußzeile genau einmal im Schlussblock', () => {
+test('Fußzeilentext ist auf eine verlässliche zweizeilige Drucklänge begrenzt', () => {
+  assert.equal(MAX_FOOTER_TEXT_LENGTH, 120)
+  assert.equal(defaultSettings.defaultLegalText.startsWith('Privatrechnung |'), true)
+  assert.equal(isFooterTextWithinLimit('x'.repeat(MAX_FOOTER_TEXT_LENGTH)), true)
+  assert.equal(isFooterTextWithinLimit('x'.repeat(MAX_FOOTER_TEXT_LENGTH + 1)), false)
+  assert.equal(limitFooterText('x'.repeat(MAX_FOOTER_TEXT_LENGTH + 1)).length, MAX_FOOTER_TEXT_LENGTH)
+  assert.equal(footerTextForPrint('  Privatrechnung\n   Test  '), 'Privatrechnung Test')
+})
+
+test('Druckrechnungen unterschiedlicher Länge nutzen gemeinsame Seitenfuß- und Folgeseitenbereiche', () => {
   const renderInvoice = (itemCount: number) => {
     const items = Array.from({ length: itemCount }, (_, index) => createLessonItem(
       'student-a',
@@ -194,13 +203,22 @@ test('Druckrechnungen unterschiedlicher Länge führen die Fußzeile genau einma
   })
 
   const stylesheet = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
+  const componentSource = readFileSync(new URL('../src/components/InvoicePrint.tsx', import.meta.url), 'utf8')
   const printStyles = stylesheet.slice(stylesheet.indexOf('@media print'))
+  const pageStyle = buildInvoicePrintPageStyle('Rechtstext mit "Anführungszeichen" und </style>', '2026-a-0001')
   assert.match(stylesheet, /\.invoice-table tr \{ break-inside: avoid; page-break-inside: avoid; \}/)
   assert.match(printStyles, /@page \{[\s\S]*size: A4 portrait;[\s\S]*margin: 16mm 20mm 22mm;/)
-  assert.match(printStyles, /@bottom-right \{[\s\S]*content: "Seite " counter\(page\) " von " counter\(pages\);/)
+  assert.doesNotMatch(printStyles, /@bottom-right/)
+  assert.match(pageStyle, /@bottom-left \{[\s\S]*content: "Rechtstext/)
+  assert.match(pageStyle, /@bottom-right \{[\s\S]*content: "Seite " counter\(page\) " von " counter\(pages\);/)
+  assert.match(pageStyle, /@top-right \{[\s\S]*content: "Rechnung 2026-a-0001";/)
+  assert.match(pageStyle, /@page :first \{[\s\S]*@top-right \{ content: ""; \}/)
+  assert.doesNotMatch(pageStyle, /<\/style>/)
+  assert.doesNotMatch(componentSource, /Privatrechnung/)
   assert.match(stylesheet, /\.invoice-closing \{ break-inside: avoid; page-break-inside: avoid; \}/)
-  assert.match(printStyles, /\.invoice-footer \{ position: static; margin: 0; padding-top: 8mm; \}/)
-  assert.doesNotMatch(printStyles, /\.invoice-footer \{[^}]*position: (?:fixed|absolute)/)
+  assert.match(stylesheet, /\.invoice-footer \{[^}]*text-align: left;/)
+  assert.match(stylesheet, /\.invoice-footer p \{[^}]*-webkit-line-clamp: 2;/)
+  assert.match(printStyles, /\.invoice-footer \{ display: none; \}/)
   assert.doesNotMatch(printStyles, /page-break-after: always/)
 })
 

@@ -4,6 +4,83 @@ export const euro = new Intl.NumberFormat('de-DE', { style: 'currency', currency
 export const number = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 })
 export const dateLong = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })
 export const dateShort = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })
+export const MAX_FOOTER_TEXT_LENGTH = 120
+
+export function isFooterTextWithinLimit(value: string): boolean {
+  return value.length <= MAX_FOOTER_TEXT_LENGTH
+}
+
+export function limitFooterText(value: string): string {
+  return value.slice(0, MAX_FOOTER_TEXT_LENGTH)
+}
+
+export function footerTextForPrint(value: string): string {
+  return limitFooterText(value.replace(/\s+/g, ' ').trim())
+}
+
+function cssContentString(value: string): string {
+  let escaped = ''
+  for (const character of value) {
+    const codePoint = character.codePointAt(0) ?? 0
+    escaped += character === '\\' || character === '"' || character === '<' || codePoint < 32 || codePoint === 127
+      ? `\\${codePoint.toString(16)} `
+      : character
+  }
+  return `"${escaped}"`
+}
+
+export function buildInvoicePrintPageStyle(footerText: string, invoiceNumber: string | null): string {
+  const footerContent = cssContentString(footerTextForPrint(footerText))
+  const invoiceReference = invoiceNumber ? cssContentString(`Rechnung ${invoiceNumber}`) : '""'
+  return `
+@page {
+  @bottom-left {
+    content: ${footerContent};
+    box-sizing: border-box;
+    width: 138mm;
+    height: 15.5mm;
+    overflow: hidden;
+    padding: 3pt 0 7mm;
+    border-top: .5pt solid rgb(30 90 160);
+    color: #666;
+    font-family: 'Inter Variable', Inter, Arial, sans-serif;
+    font-size: 6.8pt;
+    line-height: 1.35;
+    text-align: left;
+    vertical-align: bottom;
+    white-space: normal;
+  }
+  @bottom-right {
+    content: "Seite " counter(page) " von " counter(pages);
+    box-sizing: border-box;
+    width: 32mm;
+    height: 15.5mm;
+    padding: 3pt 0 7mm;
+    border-top: .5pt solid rgb(30 90 160);
+    color: #666;
+    font-family: 'Inter Variable', Inter, Arial, sans-serif;
+    font-size: 6.8pt;
+    line-height: 1.35;
+    text-align: right;
+    vertical-align: bottom;
+    white-space: nowrap;
+  }
+  @top-right {
+    content: ${invoiceReference};
+    padding-top: 5mm;
+    color: #777;
+    font-family: 'Inter Variable', Inter, Arial, sans-serif;
+    font-size: 6.5pt;
+    line-height: 1.2;
+    text-align: right;
+    vertical-align: top;
+  }
+}
+@page :first {
+  @top-right { content: ""; }
+}
+`
+}
 
 export function parseDate(value: string): Date {
   return new Date(`${value}T12:00:00`)
