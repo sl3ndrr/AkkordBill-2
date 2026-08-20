@@ -144,7 +144,7 @@ export function Dashboard({ state, onNavigate, onNewInvoice, onLoadDemo, onOpenI
             <tbody>{recent.map((invoice) => {
               const status = effectiveStatus(invoice)
               return (
-                <tr key={invoice.id} onClick={() => onOpenInvoice(invoice.id)} tabIndex={0} onKeyDown={(event) => event.key === 'Enter' && onOpenInvoice(invoice.id)}>
+                <tr key={invoice.id} onClick={() => onOpenInvoice(invoice.id)}>
                   <td><strong>{invoice.number ?? 'Entwurf'}</strong><small>{formatDate(invoice.invoiceDate)}</small></td>
                   <td>{guardianName(invoice, state.guardians)}<small>{studentName(invoice, state.students)}</small></td>
                   <td>{invoice.period}</td>

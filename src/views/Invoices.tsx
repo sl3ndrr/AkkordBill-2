@@ -50,7 +50,6 @@ export function Invoices({ state, selectedId, onSelect, onNew, onEdit, onDuplica
           <Search aria-hidden="true" />
           <span className="sr-only">Rechnungen durchsuchen</span>
           <input id="invoice-search" type="search" placeholder="Nummer, Familie, Kind oder Thema …" value={search} onChange={(event) => setSearch(event.target.value)} />
-          <kbd>/</kbd>
         </label>
         <label className="select-field select-field--compact"><span className="sr-only">Status</span><select value={status} onChange={(event) => setStatus(event.target.value as typeof status)}><option value="all">Alle Status</option>{Object.entries(statusLabel).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select><ChevronDown aria-hidden="true" /></label>
         <label className="select-field select-field--compact"><span className="sr-only">Jahr</span><select value={year} onChange={(event) => setYear(event.target.value)}><option value="all">Alle Jahre</option>{years.map((item) => <option value={item} key={item}>{item}</option>)}</select><ChevronDown aria-hidden="true" /></label>
@@ -70,7 +69,7 @@ export function Invoices({ state, selectedId, onSelect, onNew, onEdit, onDuplica
                 <tbody>{filtered.map((invoice) => {
                   const actualStatus = effectiveStatus(invoice)
                   return (
-                    <tr className={invoice.id === selectedId ? 'is-selected' : ''} key={invoice.id} onClick={() => onSelect(invoice.id)} tabIndex={0} onKeyDown={(event) => event.key === 'Enter' && onSelect(invoice.id)}>
+                    <tr className={invoice.id === selectedId ? 'is-selected' : ''} key={invoice.id} onClick={() => onSelect(invoice.id)}>
                       <td><strong>{invoice.number ?? 'Entwurf'}</strong><small>{formatDate(invoice.invoiceDate)}</small></td>
                       <td>{guardianName(invoice, state.guardians)}<small>{studentName(invoice, state.students)}</small></td>
                       <td>{invoice.period}</td>

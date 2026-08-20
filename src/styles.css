@@ -147,15 +147,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .shield-dot { position: relative; display: block; width: 19px; height: 22px; border: 2px solid var(--success); border-radius: 9px 9px 12px 12px; }
 .shield-dot::before { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: var(--success); content: ''; inset: 6px auto auto 5px; }
 .sidebar__version { margin: 10px 12px 0; color: var(--outline); font-size: 9px; font-weight: 650; letter-spacing: .05em; }
-.sidebar__help { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 12px; border: 0; background: transparent; color: var(--on-surface-variant); font-size: 12px; cursor: pointer; }
-.sidebar__help:hover { color: var(--primary); }
 
 .app-main { min-height: 100vh; margin-left: 264px; }
 .topbar { position: sticky; z-index: 20; top: 0; display: flex; height: 76px; align-items: center; gap: 20px; padding: 12px clamp(24px, 3vw, 48px); border-bottom: 1px solid color-mix(in srgb, var(--outline-variant) 70%, transparent); background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(18px); }
 .topbar-search { display: flex; width: min(420px, 40vw); height: 46px; align-items: center; gap: 11px; padding: 0 14px; border: 0; border-radius: var(--radius-full); background: var(--surface-container); color: var(--on-surface-variant); cursor: pointer; transition: background var(--motion-short), box-shadow var(--motion-short); }
 .topbar-search:hover { background: var(--surface-container-high); box-shadow: var(--shadow-1); }
 .topbar-search span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-kbd { display: inline-flex; min-width: 24px; height: 24px; margin-left: auto; align-items: center; justify-content: center; border: 1px solid var(--outline-variant); border-radius: 7px; background: var(--surface-container-lowest); color: var(--on-surface-variant); font-family: inherit; font-size: 11px; box-shadow: 0 1px 0 var(--outline-variant); }
 .topbar__end { display: flex; align-items: center; gap: 10px; margin-left: auto; }
 .topbar__storage-status { display: flex; align-items: center; gap: 11px; }
 .save-indicator { display: inline-flex; align-items: center; gap: 7px; color: var(--on-surface-variant); font-size: 11px; white-space: nowrap; }
@@ -628,7 +625,7 @@ kbd { display: inline-flex; min-width: 24px; height: 24px; margin-left: auto; al
 @media (max-width: 1120px) {
   .sidebar { width: 88px; align-items: center; padding-inline: 10px; }
   .brand { padding-inline: 0; }
-  .brand > div, .sidebar nav button span, .sidebar nav a span, .sidebar nav button b, .sidebar__privacy div, .sidebar__version, .sidebar__help { display: none; }
+  .brand > div, .sidebar nav button span, .sidebar nav a span, .sidebar nav button b, .sidebar__privacy div, .sidebar__version { display: none; }
   .sidebar nav button, .sidebar nav a { width: 56px; padding: 0; justify-content: center; }
   .sidebar__privacy { padding: 10px; }
   .app-main { margin-left: 88px; }
@@ -644,12 +641,11 @@ kbd { display: inline-flex; min-width: 24px; height: 24px; margin-left: auto; al
   .sidebar { z-index: 80; width: min(300px, 88vw); align-items: stretch; padding: 18px 16px; transform: translateX(-105%); box-shadow: var(--shadow-3); transition: transform var(--motion-long) var(--ease-emphasized); }
   .sidebar--open { transform: none; }
   .brand { padding-inline: 8px; }
-  .brand > div, .sidebar nav button span, .sidebar nav a span, .sidebar nav button b, .sidebar__privacy div, .sidebar__help { display: grid; }
+  .brand > div, .sidebar nav button span, .sidebar nav a span, .sidebar nav button b, .sidebar__privacy div { display: grid; }
   .brand .mobile-only { margin-left: auto; }
   .sidebar nav button, .sidebar nav a { width: 100%; padding: 0 16px; justify-content: flex-start; }
   .sidebar__privacy { padding: 14px 12px; }
   .sidebar__version { display: block; }
-  .sidebar__help { display: flex; }
   .nav-scrim { position: fixed; z-index: 70; inset: 0; border: 0; background: var(--scrim); animation: fade-in var(--motion-normal) both; }
   .app-main { margin-left: 0; }
   .topbar { height: 68px; padding-inline: 14px; }
