@@ -14,7 +14,7 @@ import { ToastRegion } from './components/ToastRegion'
 import { InvoicePrint } from './components/InvoicePrint'
 import { createDemoState, createEmptyInvoiceDraft, emptyState } from './lib/defaults'
 import { clearDirectoryHandle, ensureWritePermission, loadLastBackupAt, loadState, parseBackup, readDirectoryHandle, recordBackupExport, saveState, serializeBackup, storeDirectoryHandle, writeBackupToDirectory } from './lib/storage'
-import { billingPeriodFromItems, calculateDueDate, downloadText, ensureStudentCodePattern, guardianName, invoicePdfTitle, limitFooterText, nextInvoiceAllocation, parseDate, reopenInvoiceAsDraft, statusLabel, studentCodeForIndex, uid } from './lib/utils'
+import { billingPeriodFromItems, calculateDueDate, downloadText, ensureStudentCodePattern, guardianName, invoicePdfTitle, isInvoiceSetupComplete, limitFooterText, nextInvoiceAllocation, parseDate, reopenInvoiceAsDraft, statusLabel, studentCodeForIndex, uid } from './lib/utils'
 import { APP_VERSION } from './version'
 
 const navItems: Array<{ key: PageKey; label: string; icon: typeof LayoutDashboard }> = [
@@ -125,9 +125,14 @@ function App() {
   }, [state.settings.reducedMotion, state.settings.theme])
 
   const openNewInvoice = useCallback(() => {
+    if (!isInvoiceSetupComplete(state.settings)) {
+      setPage('settings')
+      toast('Richte zuerst Absender & Konto mit deinem Namen und einer gültigen IBAN ein.', 'info')
+      return
+    }
     if (!state.students.length) {
       setPage('people')
-      toast('Lege zuerst ein Kind mit einer erziehungsberechtigten Person an.', 'info')
+      toast('Lege danach ein Kind mit einer erziehungsberechtigten Person an.', 'info')
       return
     }
     setEditor({ open: true, draft: createEmptyInvoiceDraft(state.settings), editing: false, finalized: false, invoiceNumber: null })

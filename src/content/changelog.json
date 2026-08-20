@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.1.1",
+    "date": "20.08.2026",
+    "changes": [
+      "Der Aktiv-Filter in der Familienansicht verwendet wieder die unveränderte, appweit einheitliche Schaltergeometrie",
+      "Die Ersteinrichtung führt jetzt zuerst durch Absender und Konto und anschließend zur ersten Familie",
+      "Ein dynamischer Einrichtungsfortschritt und ein direkter Demo-Zugang machen den Start übersichtlicher",
+      "Neue Rechnungen öffnen sich erst nach hinterlegtem Absendernamen, gültiger IBAN und mindestens einem Kind"
+    ]
+  },
+  {
     "version": "1.1.0",
     "date": "20.08.2026",
     "changes": [

@@ -384,6 +384,10 @@ export function isValidIban(input: string): boolean {
   return remainder === 1
 }
 
+export function isInvoiceSetupComplete(settings: Pick<Settings, 'issuer' | 'iban'>): boolean {
+  return Boolean(settings.issuer.name.trim()) && isValidIban(settings.iban)
+}
+
 function sanitizeEpc(value: string, maxLength: number): string {
   return value.replace(/[\r\n]/g, ' ').trim().slice(0, maxLength)
 }

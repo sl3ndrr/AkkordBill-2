@@ -1,6 +1,6 @@
 import { ArrowRight, Banknote, CheckCircle2, Clock3, FilePlus2, ReceiptText, Sparkles, TriangleAlert, Users } from 'lucide-react'
 import type { AppState, PageKey } from '../types'
-import { effectiveStatus, euro, formatDate, guardianName, invoiceTotal, monthKey, monthLabel, statusLabel, studentName } from '../lib/utils'
+import { effectiveStatus, euro, formatDate, guardianName, invoiceTotal, isInvoiceSetupComplete, monthKey, monthLabel, statusLabel, studentName } from '../lib/utils'
 
 interface DashboardProps {
   state: AppState
@@ -11,6 +11,8 @@ interface DashboardProps {
 }
 
 export function Dashboard({ state, onNavigate, onNewInvoice, onLoadDemo, onOpenInvoice }: DashboardProps) {
+  const issuerReady = isInvoiceSetupComplete(state.settings)
+  const completedSetupSteps = Number(issuerReady) + Number(state.students.length > 0)
   const finalized = state.invoices.filter((invoice) => invoice.number)
   const open = finalized.filter((invoice) => ['sent', 'overdue'].includes(effectiveStatus(invoice)))
   const paid = finalized.filter((invoice) => effectiveStatus(invoice) === 'paid')
@@ -22,40 +24,47 @@ export function Dashboard({ state, onNavigate, onNewInvoice, onLoadDemo, onOpenI
   const monthly = getMonthlyData(state)
   const maxMonth = Math.max(...monthly.map((month) => month.amount), 1)
 
-  if (!state.students.length && !state.invoices.length) {
+  if (!state.invoices.length && completedSetupSteps < 2) {
     return (
       <div className="page dashboard-page">
         <header className="page-header page-header--hero">
-          <div>
-            <p className="eyebrow">Guten Start</p>
-            <h1>Rechnungen, die im Takt bleiben.</h1>
-            <p>Schüler:innen, Unterricht und Zahlungen an einem ruhigen, privaten Ort – direkt in deinem Browser.</p>
+          <div className="onboarding-hero__copy">
+            <p className="eyebrow">In zwei ruhigen Schritten</p>
+            <h1>Alles bereit für deine erste Rechnung.</h1>
+            <p>Zuerst Absender und Konto, dann eine Familie – so startest du vollständig eingerichtet und ohne Umwege.</p>
           </div>
-          <button className="button button--primary button--large" onClick={() => onNavigate('people')}>
-            <Users aria-hidden="true" /> Erste Familie anlegen
-          </button>
+          <div className="onboarding-hero__status">
+            <div className="onboarding-progress" aria-live="polite">
+              <span>Einrichtung</span>
+              <strong>{completedSetupSteps} von 2 Schritten abgeschlossen</strong>
+              <progress max={2} value={completedSetupSteps} aria-label={`Einrichtung: ${completedSetupSteps} von 2 Schritten abgeschlossen`} />
+            </div>
+            <button className="text-link onboarding-demo-link" type="button" onClick={onLoadDemo}>
+              <Sparkles aria-hidden="true" /> Lieber erst mit Beispieldaten testen? <ArrowRight aria-hidden="true" />
+            </button>
+          </div>
         </header>
         <section className="onboarding-grid" aria-label="Erste Schritte">
-          <button className="onboarding-card onboarding-card--primary" onClick={() => onNavigate('people')}>
+          <button className="onboarding-card onboarding-card--primary" onClick={() => onNavigate('settings')}>
             <span className="onboarding-card__step">01</span>
-            <Users aria-hidden="true" />
-            <h2>Familie anlegen</h2>
-            <p>Erziehungsberechtigte erfassen und ein oder mehrere Kinder zuordnen.</p>
-            <span className="text-link">Jetzt starten <ArrowRight aria-hidden="true" /></span>
-          </button>
-          <button className="onboarding-card" onClick={() => onNavigate('settings')}>
-            <span className="onboarding-card__step">02</span>
             <Banknote aria-hidden="true" />
             <h2>Absender & Konto</h2>
             <p>Rechnungssteller, Bankverbindung, Nummernkreis und Rechtstext hinterlegen.</p>
             <span className="text-link">Einstellungen öffnen <ArrowRight aria-hidden="true" /></span>
           </button>
+          <button className="onboarding-card" onClick={() => onNavigate('people')}>
+            <span className="onboarding-card__step">02</span>
+            <Users aria-hidden="true" />
+            <h2>Familie anlegen</h2>
+            <p>Erziehungsberechtigte erfassen und ein oder mehrere Kinder zuordnen.</p>
+            <span className="text-link">Familie erfassen <ArrowRight aria-hidden="true" /></span>
+          </button>
           <button className="onboarding-card onboarding-card--soft" onClick={onLoadDemo}>
             <span className="onboarding-card__step"><Sparkles aria-hidden="true" /></span>
             <ReceiptText aria-hidden="true" />
-            <h2>Erst einmal ansehen</h2>
-            <p>Unverfängliche Beispieldaten laden und alle Abläufe in Ruhe ausprobieren.</p>
-            <span className="text-link">Demo laden <ArrowRight aria-hidden="true" /></span>
+            <h2>Mit Beispieldaten starten</h2>
+            <p>Eine vollständig eingerichtete Beispielwelt laden und Rechnungen, Status und Auswertungen in Ruhe testen.</p>
+            <span className="text-link">Demo ausprobieren <ArrowRight aria-hidden="true" /></span>
           </button>
         </section>
         <aside className="privacy-note">
