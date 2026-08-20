@@ -5,6 +5,11 @@ export const number = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 
 export const dateLong = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })
 export const dateShort = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })
 export const MAX_FOOTER_TEXT_LENGTH = 120
+const germanCollator = new Intl.Collator('de-DE', { numeric: true, sensitivity: 'base' })
+
+export type SortDirection = 'asc' | 'desc'
+export type PeopleSortMode = 'name-asc' | 'name-desc' | 'created-desc' | 'created-asc'
+export type InvoiceSortKey = 'date' | 'number' | 'family' | 'period' | 'status' | 'amount'
 
 export function isFooterTextWithinLimit(value: string): boolean {
   return value.length <= MAX_FOOTER_TEXT_LENGTH
@@ -207,6 +212,44 @@ export function studentName(invoice: Invoice, students: Student[]): string {
     .map((id) => students.find((student) => student.id === id)?.name)
     .filter(Boolean)
   return names.join(', ') || 'Ohne Kind'
+}
+
+export function sortPeople<T extends { name: string; createdAt: string }>(entries: T[], mode: PeopleSortMode): T[] {
+  const direction = mode.endsWith('-desc') ? -1 : 1
+  return [...entries].sort((a, b) => {
+    const primary = mode.startsWith('name')
+      ? germanCollator.compare(a.name, b.name)
+      : a.createdAt.localeCompare(b.createdAt)
+    return direction * primary || germanCollator.compare(a.name, b.name)
+  })
+}
+
+function invoicePeriodSortValue(invoice: Invoice): string {
+  return invoice.items
+    .map((item) => item.serviceDate)
+    .filter(Boolean)
+    .sort()[0] ?? invoice.invoiceDate
+}
+
+const invoiceStatusOrder: Record<InvoiceStatus, number> = {
+  draft: 0,
+  sent: 1,
+  overdue: 2,
+  paid: 3,
+}
+
+export function sortInvoices(invoices: Invoice[], key: InvoiceSortKey, direction: SortDirection, guardians: Guardian[], students: Student[]): Invoice[] {
+  const multiplier = direction === 'asc' ? 1 : -1
+  return [...invoices].sort((a, b) => {
+    let primary = 0
+    if (key === 'date') primary = a.invoiceDate.localeCompare(b.invoiceDate) || a.createdAt.localeCompare(b.createdAt)
+    if (key === 'number') primary = germanCollator.compare(a.number ?? 'Entwurf', b.number ?? 'Entwurf')
+    if (key === 'family') primary = germanCollator.compare(`${guardianName(a, guardians)} ${studentName(a, students)}`, `${guardianName(b, guardians)} ${studentName(b, students)}`)
+    if (key === 'period') primary = invoicePeriodSortValue(a).localeCompare(invoicePeriodSortValue(b))
+    if (key === 'status') primary = invoiceStatusOrder[effectiveStatus(a)] - invoiceStatusOrder[effectiveStatus(b)]
+    if (key === 'amount') primary = invoiceTotal(a) - invoiceTotal(b)
+    return multiplier * primary || b.invoiceDate.localeCompare(a.invoiceDate) || b.createdAt.localeCompare(a.createdAt)
+  })
 }
 
 function filenamePart(value: string, fallback: string): string {

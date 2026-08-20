@@ -3,13 +3,13 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import type { Invoice, Student } from '../src/types'
+import type { Guardian, Invoice, Student } from '../src/types'
 import changelog from '../src/content/changelog.json'
 import { InvoicePrint } from '../src/components/InvoicePrint'
 import { createDemoState, defaultSettings, emptyState } from '../src/lib/defaults'
 import { calculateInvoiceMenuPosition, type InvoiceMenuAction, runInvoiceMenuAction } from '../src/lib/invoiceMenu'
 import { loadLastBackupAt, loadState, parseBackup, recordBackupExport, saveState, serializeBackup } from '../src/lib/storage'
-import { applyLessonType, billingPeriodFromItems, buildEpcPayload, buildInvoicePrintPageStyle, calculateDueDate, createLessonItem, effectiveStatus, ensureStudentCodePattern, footerTextForPrint, formatDateLong, formatInvoiceNumber, invoicePdfTitle, isFooterTextWithinLimit, isValidIban, limitFooterText, MAX_FOOTER_TEXT_LENGTH, nextInvoiceAllocation, studentCodeForIndex } from '../src/lib/utils'
+import { applyLessonType, billingPeriodFromItems, buildEpcPayload, buildInvoicePrintPageStyle, calculateDueDate, createLessonItem, effectiveStatus, ensureStudentCodePattern, footerTextForPrint, formatDateLong, formatInvoiceNumber, invoicePdfTitle, isFooterTextWithinLimit, isValidIban, limitFooterText, MAX_FOOTER_TEXT_LENGTH, nextInvoiceAllocation, sortInvoices, sortPeople, studentCodeForIndex } from '../src/lib/utils'
 import { APP_VERSION } from '../src/version'
 
 const student = (id: string, name: string, billingCode: string): Student => ({
@@ -143,6 +143,40 @@ test('Abrechnungszeitraum und Fälligkeit werden aus Positions- und Rechnungsdat
   assert.equal(billingPeriodFromItems([{ serviceDate: '2026-08-28' }, { serviceDate: '2026-10-02' }]), 'August bis Oktober 2026')
   assert.equal(billingPeriodFromItems([{ serviceDate: '2026-12-28' }, { serviceDate: '2027-01-08' }]), 'Dezember 2026 bis Januar 2027')
   assert.equal(calculateDueDate('2026-08-01', 14), '2026-08-15')
+})
+
+test('Familien- und Rechnungslisten werden stabil nach der gewählten Spalte sortiert', () => {
+  const anna = { ...student('student-a', 'Anna', 'a'), createdAt: '2026-08-02T10:00:00.000Z' }
+  const ben = { ...student('student-b', 'Ben', 'b'), createdAt: '2026-08-01T10:00:00.000Z' }
+  assert.deepEqual(sortPeople([ben, anna], 'name-asc').map((entry) => entry.name), ['Anna', 'Ben'])
+  assert.deepEqual(sortPeople([ben, anna], 'created-desc').map((entry) => entry.name), ['Anna', 'Ben'])
+
+  const guardians: Guardian[] = [
+    { id: 'guardian-a', name: 'Anna Familie', email: '', phone: '', iban: '', paymentNote: '', address: { street: '', postalCode: '', city: '' }, createdAt: anna.createdAt, updatedAt: anna.updatedAt },
+    { id: 'guardian-b', name: 'Zora Familie', email: '', phone: '', iban: '', paymentNote: '', address: { street: '', postalCode: '', city: '' }, createdAt: ben.createdAt, updatedAt: ben.updatedAt },
+  ]
+  const first = invoice({
+    id: 'invoice-first',
+    number: '2026-a-0010',
+    guardianIds: ['guardian-a'],
+    studentIds: ['student-a'],
+    status: 'paid',
+    items: [{ ...createLessonItem('student-a', '2026-09-01', defaultSettings, 'item-first'), unitPrice: 50 }],
+  })
+  const second = invoice({
+    id: 'invoice-second',
+    number: '2026-a-0002',
+    guardianIds: ['guardian-b'],
+    studentIds: ['student-b'],
+    status: 'draft',
+    items: [{ ...createLessonItem('student-b', '2026-07-01', defaultSettings, 'item-second'), unitPrice: 10 }],
+  })
+  const ids = (key: Parameters<typeof sortInvoices>[1]) => sortInvoices([first, second], key, 'asc', guardians, [anna, ben]).map((entry) => entry.id)
+  assert.deepEqual(ids('number'), ['invoice-second', 'invoice-first'])
+  assert.deepEqual(ids('family'), ['invoice-first', 'invoice-second'])
+  assert.deepEqual(ids('period'), ['invoice-second', 'invoice-first'])
+  assert.deepEqual(ids('status'), ['invoice-second', 'invoice-first'])
+  assert.deepEqual(ids('amount'), ['invoice-second', 'invoice-first'])
 })
 
 test('Rechnungsdokument druckt automatisch berechneten Zeitraum und Fälligkeit', () => {
@@ -367,6 +401,13 @@ test('Modal-Formulare verknüpfen ihre Footer-Buttons mit dem nativen Submit', (
   assert.match(editorSource, /type="submit" form=\{INVOICE_EDITOR_FORM_ID\}/)
   assert.match(editorSource, /onSubmit=\{\(event\) => \{ event\.preventDefault\(\); submit\(false\) \}\}/)
   assert.match(editorSource, /<textarea/)
+})
+
+test('Kinderliste startet mit aktivem Aktiv-Filter', () => {
+  const source = readFileSync(new URL('../src/views/People.tsx', import.meta.url), 'utf8')
+  assert.match(source, /\[onlyActiveStudents, setOnlyActiveStudents\] = useState\(true\)/)
+  assert.match(source, /Nur aktive Kinder anzeigen/)
+  assert.match(source, /!onlyActiveStudents \|\| student\.active/)
 })
 
 test('Zeitpunkt des letzten Backup-Exports wird persistiert', () => {
