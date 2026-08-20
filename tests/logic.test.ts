@@ -359,6 +359,16 @@ test('Einstellungen werden gebündelt automatisch gespeichert', () => {
   assert.doesNotMatch(source, /if \(!isValidIban\([^)]*\)\) return/)
 })
 
+test('Modal-Formulare verknüpfen ihre Footer-Buttons mit dem nativen Submit', () => {
+  const peopleSource = readFileSync(new URL('../src/views/People.tsx', import.meta.url), 'utf8')
+  const editorSource = readFileSync(new URL('../src/views/InvoiceEditor.tsx', import.meta.url), 'utf8')
+  assert.match(peopleSource, /type="submit" form=\{GUARDIAN_FORM_ID\}/)
+  assert.match(peopleSource, /type="submit" form=\{STUDENT_FORM_ID\}/)
+  assert.match(editorSource, /type="submit" form=\{INVOICE_EDITOR_FORM_ID\}/)
+  assert.match(editorSource, /onSubmit=\{\(event\) => \{ event\.preventDefault\(\); submit\(false\) \}\}/)
+  assert.match(editorSource, /<textarea/)
+})
+
 test('Zeitpunkt des letzten Backup-Exports wird persistiert', () => {
   withMockLocalStorage(() => {
     assert.equal(loadLastBackupAt(), null)

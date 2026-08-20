@@ -4,6 +4,8 @@ import type { Guardian, InvoiceDraft, LessonType, Settings, Student } from '../t
 import { Modal } from '../components/Modal'
 import { applyLessonType, billingPeriodFromItems, calculateDueDate, createLessonItem, euro, isFooterTextWithinLimit, itemTotal, limitFooterText, MAX_FOOTER_TEXT_LENGTH } from '../lib/utils'
 
+const INVOICE_EDITOR_FORM_ID = 'invoice-editor-form'
+
 interface InvoiceEditorProps {
   open: boolean
   draft: InvoiceDraft
@@ -110,14 +112,14 @@ export function InvoiceEditor({ open, draft, guardians, students, settings, edit
           <div className="modal-total"><span>Gesamt</span><strong>{euro.format(total)}</strong></div>
           <button className="button button--text" type="button" onClick={onClose}>Abbrechen</button>
           {finalized ? (
-            <button className="button button--primary" type="button" onClick={() => submit(false)}><Save aria-hidden="true" /> Änderungen speichern</button>
+            <button className="button button--primary" type="submit" form={INVOICE_EDITOR_FORM_ID}><Save aria-hidden="true" /> Änderungen speichern</button>
           ) : (
-            <><button className="button button--tonal" type="button" onClick={() => submit(false)}>Als Entwurf speichern</button><button className="button button--primary" type="button" onClick={() => submit(true)}><Send aria-hidden="true" /> Finalisieren</button></>
+            <><button className="button button--tonal" type="submit" form={INVOICE_EDITOR_FORM_ID}>Als Entwurf speichern</button><button className="button button--primary" type="button" onClick={() => submit(true)}><Send aria-hidden="true" /> Finalisieren</button></>
           )}
         </>
       }
     >
-      <form className="invoice-form" onSubmit={(event) => event.preventDefault()}>
+      <form className="invoice-form" id={INVOICE_EDITOR_FORM_ID} onSubmit={(event) => { event.preventDefault(); submit(false) }}>
         {finalized && <div className="revision-banner"><FileCheck2 aria-hidden="true" /><div><strong>Finalisierte Rechnung</strong><p>Die Rechnungsnummer bleibt erhalten. Änderungen werden im lokalen Verlauf protokolliert und die Druckansicht wird aktualisiert.</p></div></div>}
         {errors.length > 0 && <div className="form-errors" role="alert"><strong>Bitte noch prüfen:</strong><ul>{errors.map((error) => <li key={error}>{error}</li>)}</ul></div>}
 
