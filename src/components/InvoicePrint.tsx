@@ -151,12 +151,14 @@ export function InvoicePrint({ invoice, guardians, students, settings }: Invoice
         </section>
 
         {invoice.freeText && <p className="invoice-free-text">{invoice.freeText}</p>}
-        <section className="invoice-thanks"><p>Vielen Dank</p><strong>{issuer.name}</strong></section>
+        <div className="invoice-closing">
+          <section className="invoice-thanks"><p>Vielen Dank</p><strong>{issuer.name}</strong></section>
+          <footer className="invoice-footer">
+            <div />
+            <p>Privatrechnung <span>|</span> {invoice.legalText || source?.legalText || settings.defaultLegalText}</p>
+          </footer>
+        </div>
       </div>
-      <footer className="invoice-footer">
-        <div />
-        <p>Privatrechnung <span>|</span> {invoice.legalText || source?.legalText || settings.defaultLegalText}</p>
-      </footer>
     </article>
   )
 }

@@ -640,6 +640,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .invoice-qr > span { display: grid; width: 30mm; height: 30mm; place-items: center; padding: 3mm; border: .5pt solid #bbb; color: #777; font-size: 6.5pt; }
 .invoice-qr p { margin: 1.5pt 0 0; color: #666; font-size: 6.5pt; }
 .invoice-free-text { margin: 5mm 0 0; padding: 3mm; background: rgb(242 245 250); font-size: 8pt; }
+.invoice-closing { break-inside: avoid; page-break-inside: avoid; }
 .invoice-thanks { margin-top: 7mm; }
 .invoice-thanks p { margin: 0 0 2pt; }
 .invoice-footer { position: static; padding-top: 8mm; color: #666; font-size: 6.8pt; text-align: center; break-inside: avoid; page-break-inside: avoid; }
@@ -807,7 +808,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .invoice-table tr, .invoice-table th, .invoice-table td { break-inside: avoid !important; page-break-inside: avoid !important; }
   .invoice-group-heading { break-after: avoid; page-break-after: avoid; }
   .invoice-payment-copy { break-after: avoid; page-break-after: avoid; }
-  .invoice-payment, .invoice-free-text, .invoice-thanks { break-inside: avoid; page-break-inside: avoid; }
-  .invoice-footer { position: fixed; right: 0; bottom: -14mm; left: 0; margin: 0; padding: 0; }
-  .invoice-footer p { padding-inline: 28mm; }
+  .invoice-payment, .invoice-free-text, .invoice-closing { break-inside: avoid; page-break-inside: avoid; }
+  .invoice-footer { position: static; margin: 0; padding-top: 8mm; }
+  .invoice-footer p { padding-inline: 0; }
 }

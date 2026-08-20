@@ -161,38 +161,46 @@ test('PDF-Titel enthält Rechnungsnummer und dateisicheren Kindesnamen', () => {
   assert.equal(invoicePdfTitle(testInvoice, [student('student-a', 'Lina / Winter', 'a')]), 'Rechnung 2026-b-0002 - Lina - Winter')
 })
 
-test('Druck-Testrechnung mit 24 Positionen nutzt wiederholte Fußzeile und mehrseitige Schutzregeln', () => {
-  const items = Array.from({ length: 24 }, (_, index) => createLessonItem(
-    'student-a',
-    index < 12 ? `2026-08-${String(index + 1).padStart(2, '0')}` : `2026-09-${String(index - 11).padStart(2, '0')}`,
-    defaultSettings,
-    `item-print-${index}`,
-  ))
-  assert.equal(items.length, 24)
-  assert.equal(billingPeriodFromItems(items), 'August bis September 2026')
+test('Druckrechnungen unterschiedlicher Länge führen die Fußzeile genau einmal im Schlussblock', () => {
+  const renderInvoice = (itemCount: number) => {
+    const items = Array.from({ length: itemCount }, (_, index) => createLessonItem(
+      'student-a',
+      index < Math.ceil(itemCount / 2)
+        ? `2026-08-${String(index % 28 + 1).padStart(2, '0')}`
+        : `2026-09-${String(index % 28 + 1).padStart(2, '0')}`,
+      defaultSettings,
+      `item-print-${itemCount}-${index}`,
+    ))
+    return renderToStaticMarkup(createElement(InvoicePrint, {
+      invoice: invoice({ items }),
+      guardians: [],
+      students: [student('student-a', 'Anna', 'a')],
+      settings: defaultSettings,
+    }))
+  }
 
-  const markup = renderToStaticMarkup(createElement(InvoicePrint, {
-    invoice: invoice({ items }),
-    guardians: [],
-    students: [student('student-a', 'Anna', 'a')],
-    settings: defaultSettings,
-  }))
-  assert.equal(markup.match(/class="invoice-item-row(?:\s|")/g)?.length, 24)
-  assert.match(markup, /August bis September 2026/)
-  assert.match(markup, /August 2026/)
-  assert.match(markup, /September 2026/)
-  assert.ok(markup.indexOf('invoice-footer') > markup.lastIndexOf('</table>'))
-  assert.equal(markup.match(/class="invoice-footer"/g)?.length, 1)
-  assert.doesNotMatch(markup, /Seite 1 von 1/)
+  const cases = [
+    { label: 'einseitig', itemCount: 6 },
+    { label: 'zweiseitig', itemCount: 24 },
+    { label: 'knapp dreiseitig', itemCount: 52 },
+  ]
+  cases.forEach(({ label, itemCount }) => {
+    const markup = renderInvoice(itemCount)
+    assert.equal(markup.match(/class="invoice-item-row(?:\s|")/g)?.length, itemCount, label)
+    assert.equal(markup.match(/class="invoice-footer"/g)?.length, 1, label)
+    assert.ok(markup.indexOf('invoice-closing') > markup.lastIndexOf('</table>'), label)
+    assert.ok(markup.indexOf('invoice-footer') > markup.indexOf('invoice-thanks'), label)
+    assert.doesNotMatch(markup, /Seite 1 von 1/, label)
+  })
 
   const stylesheet = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
   const printStyles = stylesheet.slice(stylesheet.indexOf('@media print'))
   assert.match(stylesheet, /\.invoice-table tr \{ break-inside: avoid; page-break-inside: avoid; \}/)
   assert.match(printStyles, /@page \{[\s\S]*size: A4 portrait;[\s\S]*margin: 16mm 20mm 22mm;/)
   assert.match(printStyles, /@bottom-right \{[\s\S]*content: "Seite " counter\(page\) " von " counter\(pages\);/)
-  assert.match(stylesheet, /\.invoice-footer \{ position: static;/)
-  assert.match(printStyles, /\.invoice-footer \{ position: fixed; right: 0; bottom: -14mm; left: 0; margin: 0; padding: 0; \}/)
-  assert.match(printStyles, /\.invoice-footer p \{ padding-inline: 28mm; \}/)
+  assert.match(stylesheet, /\.invoice-closing \{ break-inside: avoid; page-break-inside: avoid; \}/)
+  assert.match(printStyles, /\.invoice-footer \{ position: static; margin: 0; padding-top: 8mm; \}/)
+  assert.doesNotMatch(printStyles, /\.invoice-footer \{[^}]*position: (?:fixed|absolute)/)
   assert.doesNotMatch(printStyles, /page-break-after: always/)
 })
 
