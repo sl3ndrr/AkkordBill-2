@@ -9,7 +9,7 @@ import { InvoicePrint } from '../src/components/InvoicePrint'
 import { createDemoState, defaultSettings, emptyState } from '../src/lib/defaults'
 import { calculateInvoiceMenuPosition, type InvoiceMenuAction, runInvoiceMenuAction } from '../src/lib/invoiceMenu'
 import { loadLastBackupAt, loadState, parseBackup, recordBackupExport, saveState, serializeBackup } from '../src/lib/storage'
-import { applyLessonType, billingPeriodFromItems, buildEpcPayload, buildInvoicePrintPageStyle, calculateDueDate, createLessonItem, effectiveStatus, ensureStudentCodePattern, footerTextForPrint, formatDateLong, formatInvoiceNumber, invoicePdfTitle, isFooterTextWithinLimit, isValidIban, limitFooterText, MAX_FOOTER_TEXT_LENGTH, nextInvoiceAllocation, sortInvoices, sortPeople, studentCodeForIndex } from '../src/lib/utils'
+import { applyLessonType, billingPeriodFromItems, buildEpcPayload, buildInvoicePrintPageStyle, calculateDueDate, createLessonItem, effectiveStatus, ensureStudentCodePattern, footerTextForPrint, formatDateLong, formatInvoiceNumber, invoicePdfTitle, isFooterTextWithinLimit, isValidIban, limitFooterText, MAX_FOOTER_TEXT_LENGTH, nextInvoiceAllocation, reopenInvoiceAsDraft, sortInvoices, sortPeople, studentCodeForIndex } from '../src/lib/utils'
 import { APP_VERSION } from '../src/version'
 
 const student = (id: string, name: string, billingCode: string): Student => ({
@@ -98,6 +98,41 @@ test('gelöschte finalisierte Rechnungsnummern bleiben reserviert', () => {
     recipient: 'Testfamilie',
   }]
   assert.equal(nextInvoiceAllocation(state, '2026-08-21', ['student-a']).number, '2026-a-0002')
+})
+
+test('zurückgesetzte Rechnungen werden echte Entwürfe und verbrauchte Nummern bleiben reserviert', () => {
+  const state = emptyState()
+  state.students = [student('student-a', 'Anna', 'a')]
+  state.counters = { '2026:a': 2 }
+  state.invoices = [invoice({
+    status: 'paid',
+    paidAt: '2026-08-05T10:00:00.000Z',
+    sentAt: '2026-08-01T10:00:00.000Z',
+    snapshot: {
+      issuer: structuredClone(defaultSettings.issuer),
+      guardians: [],
+      students: [{ id: 'student-a', name: 'Anna' }],
+      accountHolder: '',
+      iban: '',
+      bic: '',
+      bankName: '',
+      legalText: defaultSettings.defaultLegalText,
+    },
+  })]
+  const reopened = reopenInvoiceAsDraft(state, 'invoice-test', '2026-08-20T12:00:00.000Z')
+  const draft = reopened.invoices[0]
+  assert.equal(draft?.status, 'draft')
+  assert.equal(draft?.number, null)
+  assert.equal(draft?.sequence, null)
+  assert.equal(draft?.snapshot, undefined)
+  assert.equal(draft?.paidAt, undefined)
+  assert.equal(draft?.sentAt, undefined)
+  assert.equal(reopened.voidedInvoiceNumbers[0]?.number, '2026-a-0001')
+  assert.equal(reopened.voidedInvoiceNumbers[0]?.reason, 'reopened')
+  assert.equal(nextInvoiceAllocation(reopened, '2026-08-21', ['student-a']).number, '2026-a-0002')
+  assert.equal(reopenInvoiceAsDraft(reopened, 'invoice-test'), reopened)
+  assert.match(readFileSync(new URL('../src/views/Invoices.tsx', import.meta.url), 'utf8'), /Zurück in Entwurf/)
+  assert.match(readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8'), /In Entwurf zurücksetzen/)
 })
 
 test('IBAN-Prüfsumme wird validiert', () => {

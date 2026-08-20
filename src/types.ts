@@ -125,6 +125,7 @@ export interface VoidedInvoiceNumber {
   year: number
   invoiceDate: string
   deletedAt: string
+  reason?: 'deleted' | 'reopened'
   amount: number
   recipient: string
 }

@@ -214,6 +214,35 @@ export function studentName(invoice: Invoice, students: Student[]): string {
   return names.join(', ') || 'Ohne Kind'
 }
 
+export function reopenInvoiceAsDraft(state: AppState, invoiceId: string, at = new Date().toISOString()): AppState {
+  const target = state.invoices.find((invoice) => invoice.id === invoiceId)
+  if (!target || target.status === 'draft') return state
+  const reopened: Invoice = {
+    ...target,
+    number: null,
+    sequence: null,
+    status: 'draft',
+    snapshot: undefined,
+    paidAt: undefined,
+    sentAt: undefined,
+    updatedAt: at,
+  }
+  return {
+    ...state,
+    invoices: state.invoices.map((invoice) => invoice.id === invoiceId ? reopened : invoice),
+    voidedInvoiceNumbers: target.number ? [{
+      number: target.number,
+      sequence: target.sequence,
+      year: target.year,
+      invoiceDate: target.invoiceDate,
+      deletedAt: at,
+      reason: 'reopened',
+      amount: invoiceTotal(target),
+      recipient: guardianName(target, state.guardians),
+    }, ...state.voidedInvoiceNumbers] : state.voidedInvoiceNumbers,
+  }
+}
+
 export function sortPeople<T extends { name: string; createdAt: string }>(entries: T[], mode: PeopleSortMode): T[] {
   const direction = mode.endsWith('-desc') ? -1 : 1
   return [...entries].sort((a, b) => {

@@ -14,7 +14,7 @@ import { ToastRegion } from './components/ToastRegion'
 import { InvoicePrint } from './components/InvoicePrint'
 import { createDemoState, createEmptyInvoiceDraft, emptyState } from './lib/defaults'
 import { clearDirectoryHandle, ensureWritePermission, loadLastBackupAt, loadState, parseBackup, readDirectoryHandle, recordBackupExport, saveState, serializeBackup, storeDirectoryHandle, writeBackupToDirectory } from './lib/storage'
-import { billingPeriodFromItems, calculateDueDate, downloadText, ensureStudentCodePattern, guardianName, invoicePdfTitle, limitFooterText, nextInvoiceAllocation, parseDate, statusLabel, studentCodeForIndex, uid } from './lib/utils'
+import { billingPeriodFromItems, calculateDueDate, downloadText, ensureStudentCodePattern, guardianName, invoicePdfTitle, limitFooterText, nextInvoiceAllocation, parseDate, reopenInvoiceAsDraft, statusLabel, studentCodeForIndex, uid } from './lib/utils'
 import { APP_VERSION } from './version'
 
 const navItems: Array<{ key: PageKey; label: string; icon: typeof LayoutDashboard }> = [
@@ -266,14 +266,18 @@ function App() {
     toast(finalize ? `${createdIds.length > 1 ? `${createdIds.length} Rechnungen` : 'Rechnung'} finalisiert.` : 'Entwurf gespeichert.', 'success')
   }
 
-  const setInvoiceStatus = (invoice: Invoice, status: InvoiceStatus) => {
+  const applyInvoiceStatus = (invoice: Invoice, status: InvoiceStatus) => {
     let allocatedNumber = ''
+    const reopenedNumber = status === 'draft' ? invoice.number ?? '' : ''
     commit((current) => {
+      if (status === 'draft') {
+        return reopenInvoiceAsDraft(current, invoice.id)
+      }
       let counters = current.counters
       const invoices = current.invoices.map((candidate) => {
         if (candidate.id !== invoice.id) return candidate
         const now = new Date().toISOString()
-        if (candidate.status === 'draft' && status !== 'draft') {
+        if (candidate.status === 'draft') {
           const allocation = nextInvoiceAllocation(current, candidate.invoiceDate, candidate.studentIds)
           allocatedNumber = allocation.number
           counters = { ...counters, [allocation.counterKey]: allocation.sequence + 1 }
@@ -292,13 +296,27 @@ function App() {
           ...candidate,
           status,
           paidAt: status === 'paid' ? now : undefined,
-          sentAt: candidate.sentAt ?? (status !== 'draft' ? now : undefined),
+          sentAt: candidate.sentAt ?? now,
           updatedAt: now,
         }
       })
       return { ...current, invoices, counters }
-    }, status === 'paid' ? 'Rechnung als bezahlt markiert' : status === 'sent' ? 'Rechnung als versendet markiert' : `Rechnungsstatus auf ${statusLabel[status]} gesetzt`, 'invoice', invoice.id)
-    toast(allocatedNumber ? `Rechnung ${allocatedNumber} finalisiert.` : 'Status aktualisiert.', 'success')
+    }, status === 'draft' ? `Rechnung ${invoice.number ?? ''} in Entwurf zurückversetzt; Nummer reserviert` : status === 'paid' ? 'Rechnung als bezahlt markiert' : status === 'sent' ? 'Rechnung als versendet markiert' : `Rechnungsstatus auf ${statusLabel[status]} gesetzt`, 'invoice', invoice.id)
+    toast(reopenedNumber ? `Rechnung ${reopenedNumber} ist wieder ein Entwurf; die Nummer bleibt reserviert.` : allocatedNumber ? `Rechnung ${allocatedNumber} finalisiert.` : 'Status aktualisiert.', 'success')
+  }
+
+  const setInvoiceStatus = (invoice: Invoice, status: InvoiceStatus) => {
+    if (status === 'draft' && invoice.status !== 'draft') {
+      setConfirmation({
+        title: `Rechnung ${invoice.number ?? ''} zurück in Entwurf?`,
+        message: 'Die bisherige Rechnungsnummer bleibt dauerhaft reserviert und der eingefrorene Rechnungsstand wird entfernt. Beim erneuten Finalisieren erhält der Entwurf eine neue Nummer. Bereits versendete oder gespeicherte PDFs werden dadurch nicht geändert.',
+        label: 'In Entwurf zurücksetzen',
+        danger: true,
+        action: () => applyInvoiceStatus(invoice, 'draft'),
+      })
+      return
+    }
+    applyInvoiceStatus(invoice, status)
   }
 
   const duplicateInvoice = (invoice: Invoice) => {
@@ -342,6 +360,7 @@ function App() {
           year: invoice.year,
           invoiceDate: invoice.invoiceDate,
           deletedAt: new Date().toISOString(),
+          reason: 'deleted',
           amount: invoice.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0),
           recipient: guardianName(invoice, current.guardians),
         }, ...current.voidedInvoiceNumbers] : current.voidedInvoiceNumbers,

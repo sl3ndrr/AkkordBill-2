@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, ChevronDown, Copy, Download, Edit3, FilePlus2, Mail, MoreVertical, Printer, Search, Send, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, ChevronDown, Copy, Download, Edit3, FilePlus2, Mail, MoreVertical, Printer, RotateCcw, Search, Send, Trash2 } from 'lucide-react'
 import type { AppState, Invoice, InvoiceStatus } from '../types'
 import { EmptyState } from '../components/EmptyState'
 import { calculateInvoiceMenuPosition, type InvoiceMenuAction, type InvoiceMenuPosition, runInvoiceMenuAction } from '../lib/invoiceMenu'
@@ -258,7 +258,7 @@ function InvoiceDetail({ invoice, state, onClose, onEdit, onDuplicate, onDelete,
         ) : (
           <><button className="button button--primary" onClick={onPrint}><Printer aria-hidden="true" /> PDF / Drucken</button><button className="button button--tonal" onClick={onEdit}><Edit3 aria-hidden="true" /> Rechnung bearbeiten</button></>
         )}
-        {invoice.status !== 'draft' && <label className="status-editor"><span>Status</span><div><select value={status} onChange={(event) => onSetStatus(event.target.value as InvoiceStatus)}><option value="sent">Versendet / offen</option><option value="paid">Bezahlt</option><option value="overdue">Überfällig</option></select><ChevronDown aria-hidden="true" /></div></label>}
+        {invoice.status !== 'draft' && <div className="status-editor"><label htmlFor={`invoice-status-${invoice.id}`}>Status</label><div><select id={`invoice-status-${invoice.id}`} value={status} onChange={(event) => onSetStatus(event.target.value as InvoiceStatus)}><option value="sent">Versendet / offen</option><option value="paid">Bezahlt</option><option value="overdue">Überfällig</option></select><ChevronDown aria-hidden="true" /></div><button className="button button--text status-editor__reopen" type="button" onClick={() => onSetStatus('draft')}><RotateCcw aria-hidden="true" /> Zurück in Entwurf</button></div>}
       </div>
 
       {canRemind && (
