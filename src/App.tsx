@@ -21,7 +21,6 @@ const navItems: Array<{ key: PageKey; label: string; icon: typeof LayoutDashboar
   { key: 'invoices', label: 'Rechnungen', icon: ReceiptText },
   { key: 'people', label: 'Familien', icon: BookUser },
   { key: 'reports', label: 'Auswertung', icon: BarChart3 },
-  { key: 'about', label: 'Über mich', icon: UserRound },
   { key: 'settings', label: 'Einstellungen', icon: SettingsIcon },
 ]
 
@@ -503,9 +502,10 @@ function App() {
       <a href="#main-content" className="skip-link">Zum Inhalt springen</a>
       <aside className={`sidebar ${mobileNav ? 'sidebar--open' : ''}`}>
         <div className="brand"><span className="brand__mark" aria-hidden="true">🧾</span><div><strong>RiffRechnung</strong><small>Rechnungen</small></div><button className="icon-button mobile-only" onClick={() => setMobileNav(false)} aria-label="Navigation schließen"><X aria-hidden="true" /></button></div>
-        <nav aria-label="Hauptnavigation">{navItems.map(({ key, label, icon: Icon }) => <button className={page === key ? 'is-active' : ''} aria-current={page === key ? 'page' : undefined} key={key} onClick={() => setCurrentPage(key)}><Icon aria-hidden="true" /><span>{label}</span>{key === 'invoices' && state.invoices.filter((invoice) => invoice.status === 'draft').length > 0 && <b>{state.invoices.filter((invoice) => invoice.status === 'draft').length}</b>}</button>)}<a href={FEEDBACK_URL} target="_blank" rel="noreferrer" aria-label="Feedbackformular öffnen (neuer Tab)"><MessageSquareText aria-hidden="true" /><span>Feedback</span></a></nav>
+        <nav aria-label="Hauptnavigation">{navItems.map(({ key, label, icon: Icon }) => <button className={page === key ? 'is-active' : ''} aria-current={page === key ? 'page' : undefined} key={key} onClick={() => setCurrentPage(key)}><Icon aria-hidden="true" /><span>{label}</span>{key === 'invoices' && state.invoices.filter((invoice) => invoice.status === 'draft').length > 0 && <b>{state.invoices.filter((invoice) => invoice.status === 'draft').length}</b>}</button>)}</nav>
         <div className="sidebar__privacy"><span><ShieldDot /></span><div><strong>Nur auf diesem Gerät</strong><small>Keine automatische Cloud-Übertragung</small></div></div>
         <span className="sidebar__version">Version {APP_VERSION}</span>
+        <div className="sidebar__secondary-actions"><button type="button" className={page === 'about' ? 'is-active' : ''} aria-current={page === 'about' ? 'page' : undefined} aria-label="Über mich" title="Über mich" onClick={() => setCurrentPage('about')}><UserRound aria-hidden="true" /><span>Über mich</span></button><a href={FEEDBACK_URL} target="_blank" rel="noreferrer" aria-label="Feedbackformular öffnen (neuer Tab)" title="Feedback"><MessageSquareText aria-hidden="true" /><span>Feedback</span></a></div>
       </aside>
       {mobileNav && <button className="nav-scrim" aria-label="Navigation schließen" onClick={() => setMobileNav(false)} />}
 

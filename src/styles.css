@@ -132,10 +132,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .brand strong { font-size: 17px; letter-spacing: -0.02em; }
 .brand small { margin-top: 1px; color: var(--on-surface-variant); font-size: 11px; font-weight: 650; letter-spacing: .12em; text-transform: uppercase; }
 .sidebar nav { display: grid; gap: 6px; margin-top: 22px; }
-.sidebar nav button, .sidebar nav a { position: relative; display: flex; min-height: 50px; align-items: center; gap: 14px; padding: 0 16px; border: 0; border-radius: 18px; background: transparent; color: var(--on-surface-variant); font-size: 14px; font-weight: 620; text-decoration: none; cursor: pointer; transition: color var(--motion-short) var(--ease-standard), background var(--motion-normal) var(--ease-standard), border-radius var(--motion-normal) var(--ease-standard), transform var(--motion-short) var(--ease-standard); }
-.sidebar nav button::before, .sidebar nav a::before { position: absolute; inset: 0; border-radius: inherit; background: currentColor; content: ''; opacity: 0; transition: opacity var(--motion-short); }
-.sidebar nav button:hover, .sidebar nav a:hover { background: var(--surface-container-high); color: var(--on-surface); }
-.sidebar nav button:active, .sidebar nav a:active { transform: scale(.985); }
+.sidebar nav button { position: relative; display: flex; min-height: 50px; align-items: center; gap: 14px; padding: 0 16px; border: 0; border-radius: 18px; background: transparent; color: var(--on-surface-variant); font-size: 14px; font-weight: 620; cursor: pointer; transition: color var(--motion-short) var(--ease-standard), background var(--motion-normal) var(--ease-standard), border-radius var(--motion-normal) var(--ease-standard), transform var(--motion-short) var(--ease-standard); }
+.sidebar nav button::before { position: absolute; inset: 0; border-radius: inherit; background: currentColor; content: ''; opacity: 0; transition: opacity var(--motion-short); }
+.sidebar nav button:hover { background: var(--surface-container-high); color: var(--on-surface); }
+.sidebar nav button:active { transform: scale(.985); }
 .sidebar nav button.is-active { border-radius: 14px 22px 22px 14px; background: var(--primary-container); color: var(--on-primary-container); }
 .sidebar nav button.is-active svg { stroke-width: 2.4; }
 .sidebar nav button b { display: grid; min-width: 22px; height: 22px; margin-left: auto; place-items: center; border-radius: 50%; background: var(--tertiary-container); color: var(--on-tertiary-container); font-size: 11px; }
@@ -147,6 +147,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .shield-dot { position: relative; display: block; width: 19px; height: 22px; border: 2px solid var(--success); border-radius: 9px 9px 12px 12px; }
 .shield-dot::before { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: var(--success); content: ''; inset: 6px auto auto 5px; }
 .sidebar__version { margin: 10px 12px 0; color: var(--outline); font-size: 9px; font-weight: 650; letter-spacing: .05em; }
+.sidebar__secondary-actions { display: grid; justify-items: end; margin-top: 4px; }
+.sidebar__secondary-actions button, .sidebar__secondary-actions a { display: flex; min-height: 40px; align-items: center; justify-content: flex-end; gap: 10px; padding: 12px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--on-surface-variant); font-size: 12px; text-decoration: none; cursor: pointer; transition: color var(--motion-short), background var(--motion-short); }
+.sidebar__secondary-actions button:hover, .sidebar__secondary-actions a:hover { background: var(--surface-container); color: var(--primary); }
+.sidebar__secondary-actions button.is-active { color: var(--primary); font-weight: 680; }
+.sidebar__secondary-actions svg { width: 18px; height: 18px; }
 
 .app-main { min-height: 100vh; margin-left: 264px; }
 .topbar { position: sticky; z-index: 20; top: 0; display: flex; height: 76px; align-items: center; gap: 20px; padding: 12px clamp(24px, 3vw, 48px); border-bottom: 1px solid color-mix(in srgb, var(--outline-variant) 70%, transparent); background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(18px); }
@@ -625,9 +630,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 @media (max-width: 1120px) {
   .sidebar { width: 88px; align-items: center; padding-inline: 10px; }
   .brand { padding-inline: 0; }
-  .brand > div, .sidebar nav button span, .sidebar nav a span, .sidebar nav button b, .sidebar__privacy div, .sidebar__version { display: none; }
-  .sidebar nav button, .sidebar nav a { width: 56px; padding: 0; justify-content: center; }
+  .brand > div, .sidebar nav button span, .sidebar nav button b, .sidebar__privacy div, .sidebar__version, .sidebar__secondary-actions span { display: none; }
+  .sidebar nav button { width: 56px; padding: 0; justify-content: center; }
   .sidebar__privacy { padding: 10px; }
+  .sidebar__secondary-actions { justify-items: center; }
+  .sidebar__secondary-actions button, .sidebar__secondary-actions a { width: 48px; height: 44px; justify-content: center; padding: 0; }
   .app-main { margin-left: 88px; }
   .dashboard-grid, .people-layout { grid-template-columns: 1fr; }
   .attention-card, .guardian-section { position: static; }
@@ -641,11 +648,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .sidebar { z-index: 80; width: min(300px, 88vw); align-items: stretch; padding: 18px 16px; transform: translateX(-105%); box-shadow: var(--shadow-3); transition: transform var(--motion-long) var(--ease-emphasized); }
   .sidebar--open { transform: none; }
   .brand { padding-inline: 8px; }
-  .brand > div, .sidebar nav button span, .sidebar nav a span, .sidebar nav button b, .sidebar__privacy div { display: grid; }
+  .brand > div, .sidebar nav button span, .sidebar nav button b, .sidebar__privacy div { display: grid; }
   .brand .mobile-only { margin-left: auto; }
-  .sidebar nav button, .sidebar nav a { width: 100%; padding: 0 16px; justify-content: flex-start; }
+  .sidebar nav button { width: 100%; padding: 0 16px; justify-content: flex-start; }
   .sidebar__privacy { padding: 14px 12px; }
   .sidebar__version { display: block; }
+  .sidebar__secondary-actions { justify-items: end; }
+  .sidebar__secondary-actions span { display: inline; }
+  .sidebar__secondary-actions button, .sidebar__secondary-actions a { width: auto; height: auto; justify-content: flex-end; padding: 12px; }
   .nav-scrim { position: fixed; z-index: 70; inset: 0; border: 0; background: var(--scrim); animation: fade-in var(--motion-normal) both; }
   .app-main { margin-left: 0; }
   .topbar { height: 68px; padding-inline: 14px; }
