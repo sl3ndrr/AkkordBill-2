@@ -127,6 +127,8 @@ export function createDemoState(): AppState {
     const date = new Date(year, today.getMonth() - monthOffset, 2)
     const due = new Date(date)
     due.setDate(due.getDate() + 14)
+    const lessonType = studentId === studentB.id ? 'duo' as const : 'solo' as const
+    const unitPrice = lessonType === 'duo' ? settings.duoRate : settings.privateRate
     return {
       id,
       number,
@@ -143,10 +145,11 @@ export function createDemoState(): AppState {
         id: `${id}-item`,
         studentId,
         serviceDate: isoDate(date),
-        description: monthOffset === 0 ? 'Gitarrenunterricht · Monatsübersicht' : 'Gitarrenunterricht',
-        quantity: amount / 30,
+        lessonType,
+        description: `${monthOffset === 0 ? 'Gitarrenunterricht · Monatsübersicht' : 'Gitarrenunterricht'} (${lessonType === 'duo' ? 'Duo' : 'Solo'})`,
+        quantity: amount / unitPrice,
         unit: 'Std.' as const,
-        unitPrice: 30,
+        unitPrice,
       }],
       introText: 'Hiermit stelle ich die Unterrichtseinheiten im Fach Gitarre für den genannten Zeitraum in Rechnung.',
       freeText: '',

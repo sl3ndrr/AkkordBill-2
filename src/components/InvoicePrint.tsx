@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import QRCode from 'qrcode'
 import type { Guardian, Invoice, Settings, Student } from '../types'
-import { buildEpcPayload, euro, formatDateLong, formatIban, groupItemsByStudent, invoiceTotal, isValidIban, itemTotal, number, parseDate } from '../lib/utils'
+import { billingPeriodFromItems, buildEpcPayload, euro, formatDateLong, formatIban, groupItemsByStudent, invoiceTotal, isValidIban, itemTotal, number, parseDate } from '../lib/utils'
 
 interface InvoicePrintProps {
   invoice: Invoice | null
@@ -13,6 +13,7 @@ interface InvoicePrintProps {
 export function InvoicePrint({ invoice, guardians, students, settings }: InvoicePrintProps) {
   const [qrCode, setQrCode] = useState('')
   const total = invoice ? invoiceTotal(invoice) : 0
+  const period = invoice ? billingPeriodFromItems(invoice.items, invoice.invoiceDate) : ''
   const source = invoice?.snapshot
   const issuer = source?.issuer ?? settings.issuer
   const account = {
@@ -54,10 +55,10 @@ export function InvoicePrint({ invoice, guardians, students, settings }: Invoice
     })
     return [...byMonth.entries()].map(([key, items]) => {
       const date = parseDate(`${key}-01`)
-      const label = Number.isNaN(date.getTime()) ? invoice.period : new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(date)
+      const label = Number.isNaN(date.getTime()) ? period : new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(date)
       return { key, label, items }
     })
-  }, [invoice, studentList])
+  }, [invoice, period, studentList])
 
   useEffect(() => {
     if (!invoice || !invoice.number || !isValidIban(account.iban) || !account.holder || total <= 0) {
@@ -98,7 +99,8 @@ export function InvoicePrint({ invoice, guardians, students, settings }: Invoice
             <dl>
               <dt>Nr.:</dt><dd><strong>{invoice.number ?? 'ENTWURF'}</strong></dd>
               <dt>Datum:</dt><dd>{formatDateLong(invoice.invoiceDate)}</dd>
-              <dt>Zeitraum:</dt><dd>{invoice.period}</dd>
+              <dt>Zeitraum:</dt><dd>{period}</dd>
+              <dt>Fällig:</dt><dd><strong>{formatDateLong(invoice.dueDate)}</strong></dd>
               <dt>Von:</dt><dd><strong>{issuer.name || '–'}</strong></dd>
               <dt>Straße:</dt><dd>{issuer.street || '–'}</dd>
               <dt>PLZ/Ort:</dt><dd>{issuer.postalCode} {issuer.city}</dd>

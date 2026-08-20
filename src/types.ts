@@ -2,6 +2,7 @@ export type ThemeMode = 'system' | 'light' | 'dark'
 export type PageKey = 'dashboard' | 'invoices' | 'people' | 'reports' | 'about' | 'settings'
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue'
 export type RecipientStrategy = 'joint' | 'separate'
+export type LessonType = 'solo' | 'duo'
 
 export interface Address {
   street: string
@@ -36,6 +37,7 @@ export interface InvoiceItem {
   id: string
   studentId: string
   serviceDate: string
+  lessonType: LessonType
   description: string
   quantity: number
   unit: 'Std.' | 'Pauschale' | 'Stück'

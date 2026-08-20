@@ -56,12 +56,13 @@ export function Settings({ state, folderSupported, folderConnected, folderName, 
           </section>
 
           <section id="payment" className="surface settings-section">
-            <div className="settings-section__heading"><span><HardDrive aria-hidden="true" /></span><div><h2>Bankverbindung & GiroCode</h2><p>Aus diesen Daten entsteht der EPC-QR-Code auf finalisierten Rechnungen.</p></div></div>
+            <div className="settings-section__heading"><span><HardDrive aria-hidden="true" /></span><div><h2>Bankverbindung, Zahlungsziel & GiroCode</h2><p>Aus diesen Daten entstehen Fälligkeit und EPC-QR-Code auf finalisierten Rechnungen.</p></div></div>
             <div className="form-grid form-grid--2">
               <label className="field"><span>Kontoinhaber</span><input value={form.accountHolder} onChange={(event) => setForm({ ...form, accountHolder: event.target.value })} /></label>
               <label className="field"><span>Bank</span><input value={form.bankName} onChange={(event) => setForm({ ...form, bankName: event.target.value })} /></label>
               <label className="field field--full"><span>IBAN</span><input className="mono" value={formatIban(form.iban)} onChange={(event) => setForm({ ...form, iban: event.target.value })} aria-invalid={Boolean(form.iban && !isValidIban(form.iban))} />{form.iban && !isValidIban(form.iban) && <small className="field-error">Die IBAN-Prüfsumme ist nicht gültig.</small>}</label>
               <label className="field"><span>BIC (optional im EPC-QR)</span><input className="mono" value={form.bic} onChange={(event) => setForm({ ...form, bic: event.target.value.toUpperCase() })} /></label>
+              <label className="field"><span>Standard-Zahlungsziel (Tage)</span><input type="number" min="0" step="1" value={form.paymentTermDays} onChange={(event) => setForm({ ...form, paymentTermDays: Math.max(0, Math.trunc(Number(event.target.value))) })} /><small>Wird bei neuen Rechnungen zum Rechnungsdatum addiert.</small></label>
             </div>
             <div className="info-banner"><ShieldCheck aria-hidden="true" /><p>Der QR-Code füllt eine SEPA-Überweisung in unterstützten Banking-Apps aus. Ob sie als Echtzeitüberweisung ausgeführt wird, entscheidet die Banking-App bzw. die zahlende Person.</p></div>
           </section>
@@ -70,10 +71,9 @@ export function Settings({ state, folderSupported, folderConnected, folderName, 
             <div className="settings-section__heading"><span><FileJson aria-hidden="true" /></span><div><h2>Rechnungsvorgaben</h2><p>Jedes Kind bzw. jede Kindkombination hat einen eigenen fortlaufenden Nummernkreis.</p></div></div>
             <div className="form-grid form-grid--3">
               <label className="field field--wide"><span>Nummernmuster</span><input className="mono" value={form.numberPattern} onChange={(event) => setForm({ ...form, numberPattern: event.target.value })} /><small>Platzhalter: {'{YYYY}'}, {'{YY}'}, {'{K}'} für das Kind und {'{NNNN}'}</small></label>
-              <label className="field"><span>Zahlungsziel (Tage)</span><input type="number" min="0" value={form.paymentTermDays} onChange={(event) => setForm({ ...form, paymentTermDays: Number(event.target.value) })} /></label>
               <div className="number-preview"><span>Vorschau · Kind a</span><strong>{formatInvoiceNumber(form, 23, new Date().getFullYear(), 'a')}</strong></div>
-              <label className="field"><span>Stundensatz Einzel</span><div className="input-with-suffix"><input type="number" min="0" step="0.5" value={form.privateRate} onChange={(event) => setForm({ ...form, privateRate: Number(event.target.value) })} /><span>€</span></div></label>
-              <label className="field"><span>Stundensatz Duo</span><div className="input-with-suffix"><input type="number" min="0" step="0.5" value={form.duoRate} onChange={(event) => setForm({ ...form, duoRate: Number(event.target.value) })} /><span>€</span></div></label>
+              <label className="field"><span>Standardpreis Solo</span><div className="input-with-suffix"><input type="number" min="0" step="0.01" value={form.privateRate} onChange={(event) => setForm({ ...form, privateRate: Number(event.target.value) })} /><span>€</span></div><small>Je Einheit/Stunde für neue Positionen</small></label>
+              <label className="field"><span>Standardpreis Duo</span><div className="input-with-suffix"><input type="number" min="0" step="0.01" value={form.duoRate} onChange={(event) => setForm({ ...form, duoRate: Number(event.target.value) })} /><span>€</span></div><small>Je Einheit/Stunde für neue Positionen</small></label>
               <label className="switch-row switch-row--compact"><span><strong>Jährlich neu zählen</strong><small>Je Kalenderjahr bei 1 beginnen</small></span><input type="checkbox" checked={form.resetNumberAnnually} onChange={(event) => setForm({ ...form, resetNumberAnnually: event.target.checked })} /><i /></label>
               <label className="field field--full"><span>Standard-Rechtstext</span><textarea rows={3} value={form.defaultLegalText} onChange={(event) => setForm({ ...form, defaultLegalText: event.target.value })} /><small>Voreingestellt ist § 19 UStG ohne Umsatzsteuerausweis. Bitte an deine tatsächliche steuerliche Situation anpassen.</small></label>
             </div>

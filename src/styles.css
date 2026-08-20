@@ -298,6 +298,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .invoice-list-summary { display: flex; min-height: 48px; align-items: center; justify-content: space-between; padding: 5px 20px; border-bottom: 1px solid var(--outline-variant); color: var(--on-surface-variant); font-size: 11px; }
 .invoice-list-table tr.is-selected { background: var(--primary-container); color: var(--on-primary-container); }
 .invoice-list-table tr.is-selected small { color: inherit; opacity: .72; }
+.invoice-row-actions { width: 48px; }
+.invoice-row-menu { display: grid; justify-content: end; }
+.invoice-kebab-menu { position: fixed; z-index: 160; display: grid; width: 184px; gap: 2px; padding: 6px; border: 1px solid var(--outline-variant); border-radius: var(--radius-md); background: var(--surface-container-lowest); box-shadow: var(--shadow-3); color: var(--on-surface); }
+.invoice-kebab-menu button { display: flex; min-height: 39px; align-items: center; gap: 10px; padding: 0 11px; border: 0; border-radius: var(--radius-sm); background: transparent; color: inherit; font-size: 11px; font-weight: 620; text-align: left; cursor: pointer; }
+.invoice-kebab-menu button:hover, .invoice-kebab-menu button:focus-visible { outline: 0; background: var(--surface-container); color: var(--primary); }
+.invoice-kebab-menu button.is-danger { color: var(--error); }
+.invoice-kebab-menu svg { width: 16px; height: 16px; }
 .invoice-detail { position: sticky; top: 94px; padding: 24px; animation: detail-in var(--motion-long) var(--ease-emphasized) both; }
 @keyframes detail-in { from { opacity: 0; transform: translateX(18px) scale(.985); } to { opacity: 1; transform: none; } }
 .invoice-detail__header { display: flex; align-items: flex-start; justify-content: space-between; }
@@ -538,12 +545,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .form-section__heading p { margin: 0; color: var(--on-surface-variant); font-size: 10px; }
 .form-section__heading--action .button { margin-left: auto; }
 .editor-items { display: grid; gap: 10px; }
-.editor-item { position: relative; display: grid; grid-template-columns: 26px 125px minmax(180px, 1.7fr) 75px 100px 105px 90px 34px; align-items: end; gap: 8px; padding: 14px 10px; border: 1px solid var(--outline-variant); border-radius: var(--radius-md); background: var(--surface-container-lowest); transition: box-shadow var(--motion-short), transform var(--motion-short); }
+.editor-item { position: relative; display: grid; grid-template-columns: 26px 112px 82px minmax(170px, 1.7fr) 72px 92px 105px 86px 34px; align-items: end; gap: 8px; padding: 14px 10px; border: 1px solid var(--outline-variant); border-radius: var(--radius-md); background: var(--surface-container-lowest); transition: box-shadow var(--motion-short), transform var(--motion-short); }
 .editor-item:focus-within { box-shadow: var(--shadow-1); transform: translateY(-1px); }
 .editor-item__number { align-self: center; color: var(--outline); font-size: 9px; font-weight: 720; }
 .editor-item .field { gap: 4px; }
 .editor-item .field > span, .editor-item__total span { font-size: 8px; }
 .editor-item .field input, .editor-item .field select { min-height: 38px; padding: 7px 8px; border-radius: 9px; font-size: 10px; }
+.editor-item .field--student { grid-column: 2 / 4; grid-row: 2; }
 .editor-item__total { display: grid; align-content: center; gap: 8px; min-height: 38px; }
 .editor-item__total span { color: var(--on-surface-variant); }
 .editor-item__total strong { font-size: 11px; white-space: nowrap; }
@@ -623,8 +631,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 @media (max-width: 1350px) {
   .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .invoice-workspace--detail { grid-template-columns: minmax(540px, 1fr) 340px; }
-  .editor-item { grid-template-columns: 24px 110px minmax(160px, 1fr) 65px 85px 92px 72px 32px; }
-  .editor-item .field--unit { display: none; }
+  .editor-item { grid-template-columns: 24px 105px 75px minmax(150px, 1fr) 65px 80px 90px 70px 32px; }
 }
 
 @media (max-width: 1120px) {
@@ -735,12 +742,15 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .form-section { padding: 17px; }
   .segmented-control { grid-template-columns: 1fr; border-radius: var(--radius-md); }
   .editor-item { grid-template-columns: 25px 1fr 1fr 34px; padding: 13px; }
-  .editor-item__number { grid-row: 1 / span 2; }
-  .editor-item .field--date { grid-column: 2 / 4; }
-  .editor-item .field--description { grid-column: 2 / 5; }
-  .editor-item .field--quantity, .editor-item .field--price { grid-column: span 1; }
-  .editor-item .field--unit { display: grid; }
-  .editor-item__total { grid-column: 2 / 4; }
+  .editor-item__number { grid-column: 1; grid-row: 1 / span 2; }
+  .editor-item .field--date { grid-column: 2 / 4; grid-row: 1; }
+  .editor-item .field--lesson-type { grid-column: 2; grid-row: 2; }
+  .editor-item .field--student { grid-column: 3 / 5; grid-row: 2; }
+  .editor-item .field--description { grid-column: 2 / 5; grid-row: 3; }
+  .editor-item .field--quantity { grid-column: 2; grid-row: 4; }
+  .editor-item .field--unit { display: grid; grid-column: 3; grid-row: 4; }
+  .editor-item .field--price { grid-column: 2; grid-row: 5; }
+  .editor-item__total { grid-column: 3 / 5; grid-row: 5; }
   .editor-item__delete { grid-column: 4; grid-row: 1; }
 }
 
