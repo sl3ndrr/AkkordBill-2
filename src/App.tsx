@@ -9,6 +9,7 @@ import { Reports } from './views/Reports'
 import { Settings } from './views/Settings'
 import { About } from './views/About'
 import { ConfirmDialog } from './components/ConfirmDialog'
+import { ChangelogModal } from './components/ChangelogModal'
 import { ToastRegion } from './components/ToastRegion'
 import { InvoicePrint } from './components/InvoicePrint'
 import { createDemoState, createEmptyInvoiceDraft, emptyState } from './lib/defaults'
@@ -52,6 +53,7 @@ function App() {
   const [printInvoice, setPrintInvoice] = useState<Invoice | null>(null)
   const [toasts, setToasts] = useState<ToastMessage[]>([])
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
+  const [changelogOpen, setChangelogOpen] = useState(false)
   const [saveStateLabel, setSaveStateLabel] = useState<'saved' | 'saving'>('saved')
   const [savedAt, setSavedAt] = useState(() => new Date())
   const [lastBackupAt, setLastBackupAt] = useState(loadLastBackupAt)
@@ -505,7 +507,7 @@ function App() {
         <div className="brand"><span className="brand__mark" aria-hidden="true">🧾</span><div><strong>RiffRechnung</strong><small>Rechnungen</small></div><button className="icon-button mobile-only" onClick={() => setMobileNav(false)} aria-label="Navigation schließen"><X aria-hidden="true" /></button></div>
         <nav aria-label="Hauptnavigation">{navItems.map(({ key, label, icon: Icon }) => <button className={page === key ? 'is-active' : ''} aria-current={page === key ? 'page' : undefined} key={key} onClick={() => setCurrentPage(key)}><Icon aria-hidden="true" /><span>{label}</span>{key === 'invoices' && state.invoices.filter((invoice) => invoice.status === 'draft').length > 0 && <b>{state.invoices.filter((invoice) => invoice.status === 'draft').length}</b>}</button>)}</nav>
         <div className="sidebar__privacy"><span><ShieldDot /></span><div><strong>Nur auf diesem Gerät</strong><small>Keine automatische Cloud-Übertragung</small></div></div>
-        <span className="sidebar__version">Version {APP_VERSION}</span>
+        <button className="sidebar__version" type="button" onClick={() => setChangelogOpen(true)} aria-label={`Versionshistorie öffnen, aktuelle Version ${APP_VERSION}`}>Version {APP_VERSION}</button>
         <div className="sidebar__secondary-actions"><button type="button" className={page === 'about' ? 'is-active' : ''} aria-current={page === 'about' ? 'page' : undefined} aria-label="Über mich" title="Über mich" onClick={() => setCurrentPage('about')}><UserRound aria-hidden="true" /><span>Über mich</span></button><a href={FEEDBACK_URL} target="_blank" rel="noreferrer" aria-label="Feedbackformular öffnen (neuer Tab)" title="Feedback"><MessageSquareText aria-hidden="true" /><span>Feedback</span></a></div>
       </aside>
       {mobileNav && <button className="nav-scrim" aria-label="Navigation schließen" onClick={() => setMobileNav(false)} />}
@@ -530,6 +532,7 @@ function App() {
       <nav className="mobile-bottom-nav" aria-label="Mobile Hauptnavigation">{navItems.slice(0, 4).map(({ key, label, icon: Icon }) => <button className={page === key ? 'is-active' : ''} aria-current={page === key ? 'page' : undefined} key={key} onClick={() => setCurrentPage(key)}><Icon aria-hidden="true" /><span>{label}</span></button>)}</nav>
 
       <InvoiceEditor open={editor.open} draft={editor.draft} editing={editor.editing} finalized={editor.finalized} invoiceNumber={editor.invoiceNumber} guardians={state.guardians} students={state.students} settings={state.settings} onClose={() => setEditor((current) => ({ ...current, open: false }))} onSave={saveInvoice} />
+      <ChangelogModal open={changelogOpen} onClose={() => setChangelogOpen(false)} />
       <ConfirmDialog open={Boolean(confirmation)} title={confirmation?.title ?? ''} message={confirmation?.message ?? ''} confirmLabel={confirmation?.label} danger={confirmation?.danger} onCancel={() => setConfirmation(null)} onConfirm={() => { const action = confirmation?.action; setConfirmation(null); action?.() }} />
       <ToastRegion messages={toasts} onDismiss={(id) => setToasts((current) => current.filter((item) => item.id !== id))} />
       <div className="print-root"><InvoicePrint invoice={printInvoice} guardians={state.guardians} students={state.students} settings={state.settings} /></div>

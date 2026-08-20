@@ -155,7 +155,7 @@ export function InvoicePrint({ invoice, guardians, students, settings }: Invoice
       </div>
       <footer className="invoice-footer">
         <div />
-        <p>Privatrechnung <span>|</span> {invoice.legalText || source?.legalText || settings.defaultLegalText} <span>|</span> Seite 1 von 1</p>
+        <p>Privatrechnung <span>|</span> {invoice.legalText || source?.legalText || settings.defaultLegalText}</p>
       </footer>
     </article>
   )
