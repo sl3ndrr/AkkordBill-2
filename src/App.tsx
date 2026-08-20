@@ -24,7 +24,7 @@ const navItems: Array<{ key: PageKey; label: string; icon: typeof LayoutDashboar
   { key: 'settings', label: 'Einstellungen', icon: SettingsIcon },
 ]
 
-const FEEDBACK_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdTwAUVjtqiBcB572S5lR7OD71TFxW8CFuCS9VQj6Inpo9wgw/viewform?usp=header'
+const FEEDBACK_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdTwAUVjtqiBcB572S5IR7OD71TFxW8CfuCS9V0j6Inpo9wgw/viewform?usp=header'
 const backupDateFormatter = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 interface Confirmation {
