@@ -472,8 +472,8 @@ test('Zeitpunkt des letzten Backup-Exports wird persistiert', () => {
   })
 })
 
-test('sichtbare App-Version und neuester Changelog-Eintrag sind 1.0.3', () => {
-  assert.equal(APP_VERSION, '1.0.3')
+test('sichtbare App-Version und neuester Changelog-Eintrag sind 1.1.0', () => {
+  assert.equal(APP_VERSION, '1.1.0')
   assert.ok(Array.isArray(changelog))
   assert.equal(changelog[0]?.version, APP_VERSION)
   assert.ok((changelog[0]?.changes.length ?? 0) >= 2)

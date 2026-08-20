@@ -2,21 +2,22 @@
 
 Eine vollständig clientseitige Web-App für Rechnungen rund um Gitarrenunterricht. Sie läuft als statische Vite-App auf GitHub Pages; es gibt weder Server noch Datenbank, Benutzerkonto, Tracking oder externe API-Aufrufe.
 
-Aktuelle App-Version: **1.0.3**
+Aktuelle App-Version: **1.1.0**
 
 ## Funktionsumfang
 
-- Kinder und mehrere Erziehungsberechtigte verwalten und miteinander verknüpfen
+- Kinder und mehrere Erziehungsberechtigte verwalten, filtern, sortieren und miteinander verknüpfen
 - gemeinsame Rechnung oder je Empfänger:in eine eigenständige Rechnung erstellen
 - mehrere Kinder und automatisch berechnete Zwischensummen auf einer Rechnung
 - frei definierbare Positionen, Zahlungsziel und Textbausteine
-- Entwurf, versendet, bezahlt und automatisch erkanntes „überfällig“
+- Entwurf, versendet, bezahlt und automatisch erkanntes „überfällig“; finalisierte Rechnungen können kontrolliert in einen neuen Entwurf zurückversetzt werden
 - konfigurierbarer Nummernkreis mit dauerhaftem Kinderkennzeichen (`a`, `b`, `c` …); jedes Kind bzw. jede Kindkombination zählt getrennt und Nummern werden erst bei Finalisierung vergeben
 - eingefrorener Adress-/Kontostand als Snapshot auf finalisierten Rechnungen; kontrolliertes späteres Bearbeiten wird protokolliert
-- A4-Druckansicht im Stil der mitgelieferten LaTeX-Vorlage
+- A4-Druckansicht mit Entwurfswasserzeichen, gemeinsamer Rechtstext-/Seitenzahl-Fußzeile und Rechnungsnummer auf Folgeseiten
 - clientseitig erzeugter EPC-GiroCode (EPC069-12 / Version 002) für SEPA-Überweisungen
-- Dashboard, Volltextsuche, Filter, Zahlungserinnerung per `mailto:`, Duplizieren wiederkehrender Rechnungen und CSV-Jahresübersicht
-- Light-/Dark-Mode, responsive Desktop-/Tablet-/Smartphone-Oberfläche und reduzierte Bewegung
+- Dashboard, Volltextsuche, Filter, sortierbare Rechnungslisten, Zahlungserinnerung per `mailto:`, Duplizieren wiederkehrender Rechnungen und CSV-Jahresübersicht
+- System-/Light-/Dark-Mode, responsive Desktop-/Tablet-/Smartphone-Oberfläche und reduzierte Bewegung
+- automatisch gebündeltes Speichern aller Einstellungen
 - JSON-Export/-Import sowie optionales automatisches Backup in einen lokalen Ordner
 
 ## Tech-Stack
@@ -53,7 +54,7 @@ Vite verwendet für den Produktions-Build relative Asset-Pfade. Dadurch funktion
 
 ## PDF / Drucken
 
-„PDF / Drucken“ öffnet den nativen Druckdialog des Browsers. Dort **Als PDF speichern** wählen. Das Druck-CSS setzt A4, 20 mm Seitenränder, Inter-Typografie, den blau-grauen Briefkopf, Tabellenfarben, Bankdaten, Rechtstext und Fußzeile entsprechend der LaTeX-Vorlage um. Der Browser erzeugt dabei durchsuchbaren Text statt eines gerasterten Screenshots.
+„PDF / Drucken“ öffnet den nativen Druckdialog des Browsers. Dort **Als PDF speichern** wählen. Das Druck-CSS setzt A4, 20 mm Seitenränder, Inter-Typografie, den blau-grauen Briefkopf, Tabellenfarben, Bankdaten und eine gemeinsame Fußzeile aus Rechtstext und Seitenzahl um. Entwürfe tragen ein Wasserzeichen; auf der zweiten und jeder weiteren Seite steht zusätzlich die Rechnungsnummer. Der Browser erzeugt dabei durchsuchbaren Text statt eines gerasterten Screenshots. Für die dynamischen Seitenränder wird ein aktueller Chromium-Browser ab Version 131 (zum Beispiel Chrome oder Edge) empfohlen.
 
 Der GiroCode füllt Empfänger, IBAN, Betrag und Rechnungsnummer in unterstützten Banking-Apps aus. Der EPC-Standard selbst kann keine Echtzeitüberweisung erzwingen; diese Option wird – sofern verfügbar – in der Banking-App ausgewählt.
 
@@ -70,8 +71,8 @@ Das ist **keine Google-Drive-, Dropbox- oder sonstige Cloud-Integration**. Wenn 
 - Browserdaten sind an das jeweilige Browserprofil und die konkrete GitHub-Pages-Adresse gebunden. Regelmäßige JSON-Backups werden empfohlen.
 - Inkognito-Modus, das Löschen von Website-Daten oder ein Geräteverlust können lokale Daten entfernen.
 - Rechnungsnummern sind innerhalb jedes Kinderkennzeichens monoton und eindeutig. Das erste angelegte Kind erhält `a`, das zweite `b`; kombinierte Rechnungen verwenden beispielsweise `ab`. Parallel genutzte Browserprofile/Geräte teilen keinen Nummernkreis; für einen lückenlosen gemeinsamen Nummernkreis darf nur ein führender Datenbestand verwendet werden.
-- Finalisierte Rechnungen können bearbeitet, im Status geändert, dupliziert oder nach Bestätigung gelöscht werden. Beim Löschen bleibt die Rechnungsnummer im lokalen Nummernregister dauerhaft reserviert und wird nicht erneut vergeben.
-- Voreingestellt ist ein Hinweis auf § 19 UStG ohne Umsatzsteuerausweis. Der Rechtstext ist editierbar und muss zur tatsächlichen steuerlichen Situation passen. Die App ersetzt keine Steuer- oder Rechtsberatung.
+- Finalisierte Rechnungen können bearbeitet, im Status geändert, dupliziert, zurück in Entwurf versetzt oder nach Bestätigung gelöscht werden. Beim Zurücksetzen oder Löschen bleibt die bisherige Rechnungsnummer im lokalen Nummernregister dauerhaft reserviert und wird nicht erneut vergeben.
+- Voreingestellt ist „Privatrechnung“ mit einem Hinweis auf § 19 UStG ohne Umsatzsteuerausweis. Der auf 120 Zeichen begrenzte Fußzeilen-/Rechtstext ist editierbar und muss zur tatsächlichen steuerlichen Situation passen. Die App ersetzt keine Steuer- oder Rechtsberatung.
 
 ## Bewusst nicht enthalten
 
