@@ -50,7 +50,10 @@ function App() {
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
   const [saveStateLabel, setSaveStateLabel] = useState<'saved' | 'saving'>('saved')
   const [savedAt, setSavedAt] = useState(() => new Date())
-  const [resolvedDark, setResolvedDark] = useState(false)
+  const [resolvedDark, setResolvedDark] = useState(() => (
+    state.settings.theme === 'dark'
+    || (state.settings.theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
+  ))
   const [folderConnected, setFolderConnected] = useState(false)
   const [folderName, setFolderName] = useState('')
   const folderHandle = useRef<FileSystemDirectoryHandle | null>(null)
@@ -502,7 +505,8 @@ function App() {
   }
   const openInvoice = (id: string) => { setSelectedInvoiceId(id); setPage('invoices') }
   const setCurrentPage = (next: PageKey) => { setPage(next); setMobileNav(false) }
-  const toggleTheme = () => saveSettings({ ...state.settings, theme: document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark' })
+  const toggleTheme = () => saveSettings({ ...state.settings, theme: resolvedDark ? 'light' : 'dark' })
+  const themeToggleLabel = resolvedDark ? 'Hellmodus aktivieren' : 'Dunkelmodus aktivieren'
 
   return (
     <div className="app-shell">
@@ -520,7 +524,7 @@ function App() {
         <header className="topbar">
           <button className="icon-button mobile-only" onClick={() => setMobileNav(true)} aria-label="Navigation öffnen"><Menu aria-hidden="true" /></button>
           <button className="topbar-search" onClick={() => { setPage('invoices'); requestAnimationFrame(() => document.querySelector<HTMLInputElement>('#invoice-search')?.focus()) }}><Search aria-hidden="true" /><span>Rechnungen durchsuchen</span><kbd>/</kbd></button>
-          <div className="topbar__end"><span className={`save-indicator ${saveStateLabel === 'saving' ? 'is-saving' : ''}`}><i />{saveStateLabel === 'saving' ? 'Speichert …' : `Gespeichert ${savedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`}</span><button className="icon-button" onClick={toggleTheme} aria-label="Farbschema wechseln">{resolvedDark ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}</button><button className="button button--primary topbar-new" onClick={openNewInvoice}><FilePlus2 aria-hidden="true" /><span>Neue Rechnung</span></button></div>
+          <div className="topbar__end"><span className={`save-indicator ${saveStateLabel === 'saving' ? 'is-saving' : ''}`}><i />{saveStateLabel === 'saving' ? 'Speichert …' : `Gespeichert ${savedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`}</span><button className="icon-button" onClick={toggleTheme} aria-label={themeToggleLabel} title={themeToggleLabel}>{resolvedDark ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}</button><button className="button button--primary topbar-new" onClick={openNewInvoice}><FilePlus2 aria-hidden="true" /><span>Neue Rechnung</span></button></div>
         </header>
 
         <main id="main-content" tabIndex={-1}>
