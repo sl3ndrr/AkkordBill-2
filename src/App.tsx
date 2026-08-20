@@ -14,7 +14,7 @@ import { ToastRegion } from './components/ToastRegion'
 import { InvoicePrint } from './components/InvoicePrint'
 import { createDemoState, createEmptyInvoiceDraft, emptyState } from './lib/defaults'
 import { clearDirectoryHandle, ensureWritePermission, loadLastBackupAt, loadState, parseBackup, readDirectoryHandle, recordBackupExport, saveState, serializeBackup, storeDirectoryHandle, writeBackupToDirectory } from './lib/storage'
-import { billingPeriodFromItems, calculateDueDate, downloadText, ensureStudentCodePattern, guardianName, nextInvoiceAllocation, parseDate, statusLabel, studentCodeForIndex, uid } from './lib/utils'
+import { billingPeriodFromItems, calculateDueDate, downloadText, ensureStudentCodePattern, guardianName, invoicePdfTitle, nextInvoiceAllocation, parseDate, statusLabel, studentCodeForIndex, uid } from './lib/utils'
 import { APP_VERSION } from './version'
 
 const navItems: Array<{ key: PageKey; label: string; icon: typeof LayoutDashboard }> = [
@@ -410,7 +410,19 @@ function App() {
 
   const print = (invoice: Invoice) => {
     setPrintInvoice(invoice)
-    window.setTimeout(() => window.print(), 500)
+    window.setTimeout(() => {
+      const previousTitle = document.title
+      const restoreTitle = () => { document.title = previousTitle }
+      document.title = invoicePdfTitle(invoice, state.students)
+      window.addEventListener('afterprint', restoreTitle, { once: true })
+      try {
+        window.print()
+      } catch {
+        window.removeEventListener('afterprint', restoreTitle)
+        restoreTitle()
+        toast('Druckdialog konnte nicht geöffnet werden.', 'error')
+      }
+    }, 500)
   }
 
   const exportBackup = () => {

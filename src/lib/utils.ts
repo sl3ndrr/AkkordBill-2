@@ -132,6 +132,23 @@ export function studentName(invoice: Invoice, students: Student[]): string {
   return names.join(', ') || 'Ohne Kind'
 }
 
+function filenamePart(value: string, fallback: string): string {
+  const normalized = Array.from(value.normalize('NFKC'), (character) => character.charCodeAt(0) < 32 ? '-' : character).join('')
+  const sanitized = normalized
+    .replace(/[<>:"/\\|?*]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/\s+/g, ' ')
+    .replace(/[.\s]+$/g, '')
+    .trim()
+  return sanitized || fallback
+}
+
+export function invoicePdfTitle(invoice: Invoice, students: Student[]): string {
+  const number = filenamePart(invoice.number ?? 'Entwurf', 'Entwurf')
+  const child = filenamePart(studentName(invoice, students), 'Ohne Kind')
+  return `Rechnung ${number} - ${child}`
+}
+
 export function studentCodeForIndex(index: number): string {
   let value = Math.max(0, Math.floor(index)) + 1
   let code = ''
