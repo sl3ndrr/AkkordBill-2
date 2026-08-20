@@ -1,24 +1,25 @@
 export const aboutContent = {
   eyebrow: 'Über RiffRechnung',
   title: 'Über mich',
-  intro: 'Hallo! Ich unterrichte Gitarre und habe RiffRechnung entwickelt, damit nach der letzten Unterrichtsstunde weniger Verwaltungsarbeit und mehr Zeit für Musik bleibt.',
-  sectionsLabel: 'Persönlicher Hintergrund',
+  intro:
+    'Hallo! Ich studiere Lehramt für Physik und Informatik und gebe nebenbei Privatunterricht. RiffRechnung ist aus meinem eigenen Wunsch entstanden, Rechnungen für Eltern unkompliziert, übersichtlich und absolut sicher zu verwalten.',
+  sectionsLabel: 'Hintergrund & Philosophie',
   sections: [
     {
-      title: 'Musik im Mittelpunkt',
-      body: 'Im Unterricht geht es für mich um Neugier, verlässliche Begleitung und die Freude am eigenen Klang. Organisation soll diesen Raum unterstützen, nicht von ihm ablenken.',
+      title: 'Aus der Praxis für die Praxis',
+      body: 'Als ich mit dem Privatunterricht startete, fehlte mir eine optimale Lösung für die Abrechnung. Word und Excel waren mir zu umständlich, und bei LaTeX war die reine Berechnung und Verwaltung schlicht zu mühsam. Kurzerhand habe ich meine eigenen Ideen gesammelt und RiffRechnung – unter Einbindung moderner LLMs – entwickelt, um mir und anderen eine maßgeschneiderte Software zu bieten.',
     },
     {
-      title: 'Warum RiffRechnung?',
-      body: 'Zwischen Stundenplanung, Familienkontakten und Rechnungen fehlte mir eine einfache Lösung für den Unterrichtsalltag. RiffRechnung bündelt genau diese wiederkehrenden Aufgaben.',
+      title: 'Modernes Design mit Material 3 Expressive',
+      body: 'Gute Software muss nicht nur funktionieren, sondern auch visuell überzeugen. Als großer Fan der Expressive-Designsprache von Material 3 habe ich besonderen Wert auf ein modernes, ansprechendes und übersichtliches Interface gelegt, das im Alltag Freude macht.',
     },
     {
-      title: 'Einfach und lokal',
-      body: 'Klare Abläufe und ein bewusster Umgang mit Daten sind mir wichtig. Deshalb funktioniert die Anwendung ohne Benutzerkonto und speichert ihre Inhalte lokal im Browser.',
+      title: 'Maximale Sicherheit & lokale Daten',
+      body: 'Datenschutz steht bei RiffRechnung an erster Stelle. Es dürfen und werden keine Daten abgegriffen: Sämtliche Informationen verbleiben vollständig auf deinem Gerät und werden ausschließlich lokal im Browser verarbeitet und gespeichert.',
     },
   ],
   closing: {
-    title: 'Persönlich. Klar. Unkompliziert.',
-    body: 'Diese Seite ist der richtige Ort für deinen eigenen Hintergrund, deine Unterrichtsphilosophie und alles, was Besucherinnen und Besucher über dich wissen sollen.',
+    title: 'Einfach. Sicher. Modern.',
+    body: 'Ich hoffe, dass RiffRechnung auch dir den Unterrichtsalltag erleichtert und dir eine perfekte Übersicht über deine Finanzen und Rechnungen verschafft.',
   },
 } as const
