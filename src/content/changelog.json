@@ -4,6 +4,8 @@
     "date": "20.08.2026",
     "changes": [
       "PDF-Drucklayout mit kollisionsfreien Fußzeilen auf jeder Rechnungsseite korrigiert",
+      "Automatische Seitenangabe mit aktueller und gesamter Seitenzahl ergänzt",
+      "PDF-Dateinamen um Rechnungsnummer und Kindesnamen ergänzt",
       "Interaktives Changelog-Modal mit Material 3 Design integriert"
     ]
   },

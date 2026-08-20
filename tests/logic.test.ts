@@ -9,7 +9,7 @@ import { InvoicePrint } from '../src/components/InvoicePrint'
 import { defaultSettings, emptyState } from '../src/lib/defaults'
 import { type InvoiceMenuAction, runInvoiceMenuAction } from '../src/lib/invoiceMenu'
 import { loadLastBackupAt, loadState, parseBackup, recordBackupExport, saveState, serializeBackup } from '../src/lib/storage'
-import { applyLessonType, billingPeriodFromItems, buildEpcPayload, calculateDueDate, createLessonItem, effectiveStatus, ensureStudentCodePattern, formatDateLong, formatInvoiceNumber, isValidIban, nextInvoiceAllocation, studentCodeForIndex } from '../src/lib/utils'
+import { applyLessonType, billingPeriodFromItems, buildEpcPayload, calculateDueDate, createLessonItem, effectiveStatus, ensureStudentCodePattern, formatDateLong, formatInvoiceNumber, invoicePdfTitle, isValidIban, nextInvoiceAllocation, studentCodeForIndex } from '../src/lib/utils'
 import { APP_VERSION } from '../src/version'
 
 const student = (id: string, name: string, billingCode: string): Student => ({
@@ -156,6 +156,11 @@ test('Rechnungsdokument druckt automatisch berechneten Zeitraum und Fälligkeit'
   assert.equal(formatDateLong(testInvoice.dueDate), '15. August 2026')
 })
 
+test('PDF-Titel enthält Rechnungsnummer und dateisicheren Kindesnamen', () => {
+  const testInvoice = invoice({ number: '2026/b:0002', studentIds: ['student-a'] })
+  assert.equal(invoicePdfTitle(testInvoice, [student('student-a', 'Lina / Winter', 'a')]), 'Rechnung 2026-b-0002 - Lina - Winter')
+})
+
 test('Druck-Testrechnung mit 24 Positionen nutzt wiederholte Fußzeile und mehrseitige Schutzregeln', () => {
   const items = Array.from({ length: 24 }, (_, index) => createLessonItem(
     'student-a',
@@ -183,9 +188,11 @@ test('Druck-Testrechnung mit 24 Positionen nutzt wiederholte Fußzeile und mehrs
   const stylesheet = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
   const printStyles = stylesheet.slice(stylesheet.indexOf('@media print'))
   assert.match(stylesheet, /\.invoice-table tr \{ break-inside: avoid; page-break-inside: avoid; \}/)
-  assert.match(printStyles, /@page \{ size: A4 portrait; margin: 16mm 20mm 22mm; \}/)
+  assert.match(printStyles, /@page \{[\s\S]*size: A4 portrait;[\s\S]*margin: 16mm 20mm 22mm;/)
+  assert.match(printStyles, /@bottom-right \{[\s\S]*content: "Seite " counter\(page\) " von " counter\(pages\);/)
   assert.match(stylesheet, /\.invoice-footer \{ position: static;/)
-  assert.match(printStyles, /\.invoice-footer \{ position: fixed; right: 20mm; bottom: 8mm; left: 20mm; margin: 0; padding: 0; background: #fff; \}/)
+  assert.match(printStyles, /\.invoice-footer \{ position: fixed; right: 0; bottom: -14mm; left: 0; margin: 0; padding: 0; \}/)
+  assert.match(printStyles, /\.invoice-footer p \{ padding-inline: 28mm; \}/)
   assert.doesNotMatch(printStyles, /page-break-after: always/)
 })
 
