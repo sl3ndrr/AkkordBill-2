@@ -612,8 +612,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .print-root { display: none; }
 
 /* A4 invoice template: visual translation of the supplied LaTeX design */
-.invoice-paper { width: 210mm; min-height: 297mm; padding: 20mm; background: #fff; color: #191b20; font-family: 'Inter Variable', Inter, Arial, sans-serif; font-size: 10pt; line-height: 1.35; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-.invoice-paper__body { display: flow-root; }
+.invoice-paper { position: relative; width: 210mm; min-height: 297mm; padding: 20mm; isolation: isolate; background: #fff; color: #191b20; font-family: 'Inter Variable', Inter, Arial, sans-serif; font-size: 10pt; line-height: 1.35; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+.invoice-paper__body { position: relative; z-index: 1; display: flow-root; }
+.invoice-draft-watermark { position: absolute; z-index: 0; top: 118mm; left: 50%; padding: 3mm 7mm; border: 1.5mm solid rgb(30 90 160 / .11); color: rgb(30 90 160 / .11); font-size: 38pt; font-weight: 800; letter-spacing: .18em; line-height: 1; pointer-events: none; transform: translateX(-50%) rotate(-28deg); }
 .invoice-letterhead { display: grid; grid-template-columns: 55fr 40fr; gap: 5%; align-items: start; }
 .invoice-senderline { margin: 0 0 4pt; color: #666; font-size: 7.5pt; }
 .invoice-to { margin: 0 0 3pt; color: rgb(30 90 160); font-size: 7.5pt; font-weight: 750; }
@@ -807,6 +808,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .print-root { display: block !important; margin: 0; }
   .invoice-paper { width: auto; min-height: 0; margin: 0; padding: 0; break-after: auto; page-break-after: auto; }
   .invoice-paper__body { display: flow-root; }
+  .invoice-draft-watermark { position: fixed; top: 118mm; }
   .invoice-table { break-inside: auto; page-break-inside: auto; }
   .invoice-table thead { display: table-header-group; }
   .invoice-table tbody { display: table-row-group; }

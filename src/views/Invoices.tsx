@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, ChevronDown, Copy, Download, Edit3, FilePlus2, Mail, MoreVertical, Printer, RotateCcw, Search, Send, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, ChevronDown, Copy, Edit3, FilePlus2, Mail, MoreVertical, Printer, RotateCcw, Search, Send, Trash2 } from 'lucide-react'
 import type { AppState, Invoice, InvoiceStatus } from '../types'
 import { EmptyState } from '../components/EmptyState'
 import { calculateInvoiceMenuPosition, type InvoiceMenuAction, type InvoiceMenuPosition, runInvoiceMenuAction } from '../lib/invoiceMenu'
@@ -189,7 +189,7 @@ export function Invoices({ state, selectedId, onSelect, onNew, onEdit, onDuplica
           }}
         >
           <button type="button" role="menuitem" onClick={() => chooseMenuAction('edit', menuInvoice)}><Edit3 aria-hidden="true" /> Bearbeiten</button>
-          <button type="button" role="menuitem" onClick={() => chooseMenuAction('pdf', menuInvoice)}><Printer aria-hidden="true" /> PDF generieren</button>
+          <button type="button" role="menuitem" onClick={() => chooseMenuAction('pdf', menuInvoice)}><Printer aria-hidden="true" /> {menuInvoice.status === 'draft' ? 'Vorschau' : 'PDF generieren'}</button>
           <button type="button" role="menuitem" onClick={() => chooseMenuAction('duplicate', menuInvoice)}><Copy aria-hidden="true" /> Duplizieren</button>
           <button className="is-danger" type="button" role="menuitem" onClick={() => chooseMenuAction('delete', menuInvoice)}><Trash2 aria-hidden="true" /> Löschen</button>
         </div>,
@@ -254,7 +254,7 @@ function InvoiceDetail({ invoice, state, onClose, onEdit, onDuplicate, onDelete,
 
       <div className="detail-actions">
         {invoice.status === 'draft' ? (
-          <><button className="button button--primary" onClick={() => onSetStatus('sent')}><Send aria-hidden="true" /> Finalisieren</button><button className="button button--tonal" onClick={onEdit}><Edit3 aria-hidden="true" /> Bearbeiten</button></>
+          <><button className="button button--primary" onClick={() => onSetStatus('sent')}><Send aria-hidden="true" /> Finalisieren</button><button className="button button--tonal" onClick={onPrint}><Printer aria-hidden="true" /> Vorschau</button><button className="button button--text" onClick={onEdit}><Edit3 aria-hidden="true" /> Bearbeiten</button></>
         ) : (
           <><button className="button button--primary" onClick={onPrint}><Printer aria-hidden="true" /> PDF / Drucken</button><button className="button button--tonal" onClick={onEdit}><Edit3 aria-hidden="true" /> Rechnung bearbeiten</button></>
         )}
@@ -268,15 +268,14 @@ function InvoiceDetail({ invoice, state, onClose, onEdit, onDuplicate, onDelete,
         </section>
       )}
 
-      <section className="position-summary">
+      {invoice.status === 'draft' && <section className="position-summary">
         <h3>Positionen</h3>
         {invoice.items.map((item) => <div key={item.id}><span>{item.description}<small>{formatDate(item.serviceDate)} · {item.quantity.toLocaleString('de-DE')} {item.unit}</small></span><strong>{euro.format(item.quantity * item.unitPrice)}</strong></div>)}
-      </section>
+      </section>}
 
       <footer className="invoice-detail__footer">
         <button className="button button--text" onClick={onDuplicate}><Copy aria-hidden="true" /> Duplizieren</button>
         <button className="button button--text button--danger-text" onClick={onDelete}><Trash2 aria-hidden="true" /> Löschen</button>
-        {invoice.status !== 'draft' && <button className="button button--text" onClick={onPrint}><Download aria-hidden="true" /> Vorschau</button>}
       </footer>
     </aside>
   )

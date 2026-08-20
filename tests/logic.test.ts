@@ -291,6 +291,24 @@ test('Druckrechnungen unterschiedlicher Länge nutzen gemeinsame Seitenfuß- und
   assert.doesNotMatch(printStyles, /page-break-after: always/)
 })
 
+test('Entwurfsdrucke tragen ein Wasserzeichen und nur Entwürfe zeigen Positionsdetails', () => {
+  const props = {
+    guardians: [],
+    students: [student('student-a', 'Anna', 'a')],
+    settings: defaultSettings,
+  }
+  const draftMarkup = renderToStaticMarkup(createElement(InvoicePrint, { ...props, invoice: invoice({ number: null, sequence: null, status: 'draft' }) }))
+  const finalMarkup = renderToStaticMarkup(createElement(InvoicePrint, { ...props, invoice: invoice() }))
+  assert.match(draftMarkup, /class="invoice-draft-watermark"[^>]*>ENTWURF</)
+  assert.doesNotMatch(finalMarkup, /invoice-draft-watermark/)
+
+  const stylesheet = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
+  const source = readFileSync(new URL('../src/views/Invoices.tsx', import.meta.url), 'utf8')
+  assert.match(stylesheet.slice(stylesheet.indexOf('@media print')), /\.invoice-draft-watermark \{ position: fixed;/)
+  assert.match(source, /invoice\.status === 'draft' && <section className="position-summary">/)
+  assert.doesNotMatch(source, /<Download/)
+})
+
 test('alle Kebab-Menü-Aktionen werden an den vorgesehenen Handler weitergeleitet', () => {
   const calls: string[] = []
   const handlers = {

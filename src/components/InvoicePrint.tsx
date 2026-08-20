@@ -83,6 +83,7 @@ export function InvoicePrint({ invoice, guardians, students, settings }: Invoice
   return (
     <article className="invoice-paper" aria-label={`Rechnung ${invoice.number ?? 'Entwurf'}`}>
       <style data-invoice-page-style>{pageStyle}</style>
+      {invoice.status === 'draft' && <div className="invoice-draft-watermark" aria-hidden="true">ENTWURF</div>}
       <div className="invoice-paper__body">
         <header className="invoice-letterhead">
           <section className="invoice-recipient">
