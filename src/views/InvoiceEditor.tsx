@@ -1,10 +1,22 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Calendar, CircleDollarSign, FileCheck2, Plus, Save, Send, Trash2 } from 'lucide-react'
+import { Calendar, CircleDollarSign, FileCheck2, Minus, Plus, Save, Send, Trash2 } from 'lucide-react'
 import type { Guardian, InvoiceDraft, LessonType, Settings, Student } from '../types'
 import { Modal } from '../components/Modal'
 import { applyLessonType, billingPeriodFromItems, calculateDueDate, createLessonItem, euro, isFooterTextWithinLimit, itemTotal, limitFooterText, MAX_FOOTER_TEXT_LENGTH } from '../lib/utils'
 
 const INVOICE_EDITOR_FORM_ID = 'invoice-editor-form'
+const MIN_QUANTITY = 0.01
+const MAX_QUANTITY = 99.99
+const QUANTITY_INCREMENT = 0.25
+
+const roundQuantity = (quantity: number) => Math.round(quantity * 100) / 100
+const normalizeQuantity = (quantity: number) => Math.min(MAX_QUANTITY, Math.max(MIN_QUANTITY, roundQuantity(quantity)))
+const isValidQuantity = (quantity: number) => (
+  Number.isFinite(quantity)
+  && quantity >= MIN_QUANTITY
+  && quantity <= MAX_QUANTITY
+  && roundQuantity(quantity) === quantity
+)
 
 interface InvoiceEditorProps {
   open: boolean
@@ -49,6 +61,15 @@ export function InvoiceEditor({ open, draft, guardians, students, settings, edit
     setForm((current) => ({ ...current, items: current.items.map((item) => item.id === id ? { ...item, [key]: value } : item) }))
   }
 
+  const adjustQuantity = (id: string, direction: 1 | -1) => {
+    setForm((current) => ({
+      ...current,
+      items: current.items.map((item) => item.id === id
+        ? { ...item, quantity: normalizeQuantity(item.quantity + direction * QUANTITY_INCREMENT) }
+        : item),
+    }))
+  }
+
   const updateServiceDate = (id: string, serviceDate: string) => {
     setForm((current) => {
       const items = current.items.map((item) => item.id === id ? { ...item, serviceDate } : item)
@@ -91,7 +112,7 @@ export function InvoiceEditor({ open, draft, guardians, students, settings, edit
     if (!form.invoiceDate || !form.dueDate) nextErrors.push('Rechnungs- und Fälligkeitsdatum angeben.')
     if (!calculatedPeriod) nextErrors.push('Leistungszeitraum über die Positionsdaten angeben.')
     if (!form.items.length) nextErrors.push('Mindestens eine Position ergänzen.')
-    if (form.items.some((item) => !item.serviceDate || !item.description.trim() || item.quantity <= 0 || item.unitPrice < 0)) nextErrors.push('Alle Positionen vollständig und mit gültigen Werten ausfüllen.')
+    if (form.items.some((item) => !item.serviceDate || !item.description.trim() || !isValidQuantity(item.quantity) || item.unitPrice < 0)) nextErrors.push('Alle Positionen vollständig und mit gültigen Werten ausfüllen.')
     if (!footerTextValid) nextErrors.push(`Der Fußzeilen-/Rechtstext darf höchstens ${MAX_FOOTER_TEXT_LENGTH} Zeichen lang sein.`)
     setErrors(nextErrors)
     if (!nextErrors.length) {
@@ -149,7 +170,7 @@ export function InvoiceEditor({ open, draft, guardians, students, settings, edit
                 <label className="field field--lesson-type"><span>Art</span><select value={item.lessonType} onChange={(event) => updateLessonType(item.id, event.target.value as LessonType)}><option value="solo">Solo</option><option value="duo">Duo</option></select></label>
                 <label className="field field--description"><span>Beschreibung</span><input type="text" value={item.description} onChange={(event) => updateItem(item.id, 'description', event.target.value)} placeholder="z. B. Akkordwechsel (Solo)" /></label>
                 {form.studentIds.length > 1 && <label className="field field--student"><span>Kind</span><select value={item.studentId} onChange={(event) => updateItem(item.id, 'studentId', event.target.value)}>{form.studentIds.map((id) => <option key={id} value={id}>{students.find((student) => student.id === id)?.name}</option>)}</select></label>}
-                <label className="field field--quantity"><span>Menge</span><input type="number" min="0.01" step="0.25" value={item.quantity} onChange={(event) => updateItem(item.id, 'quantity', Number(event.target.value))} /></label>
+                <div className="field field--quantity"><span id={`quantity-label-${item.id}`}>Menge</span><div className="quantity-stepper"><input aria-labelledby={`quantity-label-${item.id}`} type="number" inputMode="decimal" min={MIN_QUANTITY} max={MAX_QUANTITY} step="0.01" value={item.quantity} onKeyDown={(event) => { if (event.key === 'ArrowUp' || event.key === 'ArrowDown') { event.preventDefault(); adjustQuantity(item.id, event.key === 'ArrowUp' ? 1 : -1) } }} onChange={(event) => updateItem(item.id, 'quantity', Number(event.target.value))} /><button type="button" onClick={() => adjustQuantity(item.id, 1)} disabled={item.quantity >= MAX_QUANTITY} aria-label={`Menge für Position ${index + 1} um ${QUANTITY_INCREMENT} erhöhen`}><Plus aria-hidden="true" /></button><button type="button" onClick={() => adjustQuantity(item.id, -1)} disabled={item.quantity <= MIN_QUANTITY} aria-label={`Menge für Position ${index + 1} um ${QUANTITY_INCREMENT} verringern`}><Minus aria-hidden="true" /></button></div></div>
                 <label className="field field--unit"><span>Einheit</span><select value={item.unit} onChange={(event) => updateItem(item.id, 'unit', event.target.value)}><option>Std.</option><option>Pauschale</option><option>Stück</option></select></label>
                 <label className="field field--price"><span>Einzelpreis</span><div className="input-with-suffix"><input type="number" min="0" step="0.01" value={item.unitPrice} onChange={(event) => updateItem(item.id, 'unitPrice', Number(event.target.value))} /><span>€</span></div></label>
                 <div className="editor-item__total"><span>Betrag</span><strong>{euro.format(itemTotal(item))}</strong></div>

@@ -70,7 +70,7 @@ export function People({ state, onSaveGuardian, onSaveStudent, onDeleteGuardian,
 
       <div className="people-toolbar">
         <label className="search-field people-search"><Search aria-hidden="true" /><span className="sr-only">Familien durchsuchen</span><input type="search" placeholder="Nach Kind, Elternteil oder Ort suchen …" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
-        <label className="switch-row switch-row--compact people-active-filter"><span><strong>Nur aktive Kinder anzeigen</strong><small>{state.students.filter((student) => student.active).length} aktiv · {state.students.length} insgesamt</small></span><input type="checkbox" checked={onlyActiveStudents} onChange={(event) => setOnlyActiveStudents(event.target.checked)} /><i /></label>
+        <label className="switch-row switch-row--compact people-active-filter"><span className="people-active-filter__copy"><strong>Nur aktive Kinder anzeigen</strong><small>{state.students.filter((student) => student.active).length} aktiv · {state.students.length} insgesamt</small></span><input type="checkbox" checked={onlyActiveStudents} onChange={(event) => setOnlyActiveStudents(event.target.checked)} /><i /></label>
         <label className="select-field people-sort"><span className="sr-only">Familienlisten sortieren</span><select value={peopleSort} onChange={(event) => setPeopleSort(event.target.value as PeopleSortMode)}><option value="name-asc">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="created-desc">Neueste zuerst</option><option value="created-asc">Älteste zuerst</option></select><ChevronDown aria-hidden="true" /></label>
       </div>
 
