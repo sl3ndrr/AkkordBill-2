@@ -13,7 +13,7 @@ import { ToastRegion } from './components/ToastRegion'
 import { InvoicePrint } from './components/InvoicePrint'
 import { createDemoState, createEmptyInvoiceDraft, emptyState } from './lib/defaults'
 import { clearDirectoryHandle, ensureWritePermission, loadLastBackupAt, loadState, parseBackup, readDirectoryHandle, recordBackupExport, saveState, serializeBackup, storeDirectoryHandle, writeBackupToDirectory } from './lib/storage'
-import { downloadText, ensureStudentCodePattern, guardianName, nextInvoiceAllocation, parseDate, statusLabel, studentCodeForIndex, uid } from './lib/utils'
+import { billingPeriodFromItems, calculateDueDate, downloadText, ensureStudentCodePattern, guardianName, nextInvoiceAllocation, parseDate, statusLabel, studentCodeForIndex, uid } from './lib/utils'
 import { APP_VERSION } from './version'
 
 const navItems: Array<{ key: PageKey; label: string; icon: typeof LayoutDashboard }> = [
@@ -177,6 +177,7 @@ function App() {
 
   const saveInvoice = (draft: InvoiceDraft, finalize: boolean) => {
     const now = new Date().toISOString()
+    const period = billingPeriodFromItems(draft.items, draft.invoiceDate)
     const existing = draft.id ? state.invoices.find((invoice) => invoice.id === draft.id) : undefined
     if (existing?.number) {
       commit((current) => {
@@ -204,7 +205,7 @@ function App() {
             year: parseDate(draft.invoiceDate).getFullYear(),
             invoiceDate: draft.invoiceDate,
             dueDate: draft.dueDate,
-            period: draft.period,
+            period,
             guardianIds: draft.guardianIds,
             studentIds: preservedStudentIds,
             recipientStrategy: 'joint',
@@ -237,7 +238,7 @@ function App() {
           year: parseDate(draft.invoiceDate).getFullYear(),
           invoiceDate: draft.invoiceDate,
           dueDate: draft.dueDate,
-          period: draft.period,
+          period,
           status: 'draft',
           guardianIds,
           studentIds: draft.studentIds,
@@ -307,21 +308,21 @@ function App() {
     const sourceDate = parseDate(invoice.invoiceDate)
     const targetDate = new Date()
     const monthDelta = (targetDate.getFullYear() - sourceDate.getFullYear()) * 12 + targetDate.getMonth() - sourceDate.getMonth()
-    const dueDate = new Date(targetDate)
-    dueDate.setDate(dueDate.getDate() + state.settings.paymentTermDays)
     const shiftDate = (value: string) => {
       const date = parseDate(value)
+      if (Number.isNaN(date.getTime())) return targetDate.toISOString().slice(0, 10)
       date.setMonth(date.getMonth() + monthDelta)
       return date.toISOString().slice(0, 10)
     }
+    const items = invoice.items.map((item) => ({ ...item, id: uid('item'), serviceDate: shiftDate(item.serviceDate) }))
     setEditor({ open: true, editing: false, finalized: false, invoiceNumber: null, draft: {
       invoiceDate: targetDate.toISOString().slice(0, 10),
-      dueDate: dueDate.toISOString().slice(0, 10),
-      period: new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(targetDate),
+      dueDate: calculateDueDate(targetDate.toISOString().slice(0, 10), state.settings.paymentTermDays),
+      period: billingPeriodFromItems(items, targetDate.toISOString().slice(0, 10)),
       guardianIds: invoice.guardianIds.filter((id) => state.guardians.some((guardian) => guardian.id === id)),
       studentIds: invoice.studentIds.filter((id) => state.students.some((student) => student.id === id)),
       recipientStrategy: invoice.recipientStrategy,
-      items: invoice.items.map((item) => ({ ...item, id: uid('item'), serviceDate: shiftDate(item.serviceDate) })),
+      items,
       introText: invoice.introText,
       freeText: invoice.freeText,
       legalText: state.settings.defaultLegalText,

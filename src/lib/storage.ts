@@ -1,4 +1,4 @@
-import type { AppState, Student } from '../types'
+import type { AppState, Invoice, InvoiceItem, Student } from '../types'
 import { emptyState } from './defaults'
 import { ensureStudentCodePattern, studentCodeForIndex, studentCodeIndex } from './utils'
 
@@ -30,6 +30,18 @@ function normalizeStudents(students: Student[], declaredNextIndex = 0): { studen
   }
 }
 
+function normalizeInvoiceItem(item: InvoiceItem): InvoiceItem {
+  const lessonType = item.lessonType === 'duo' || /\(duo\)\s*$/iu.test(item.description) ? 'duo' : 'solo'
+  return { ...item, lessonType }
+}
+
+function normalizeInvoices(invoices: Invoice[]): Invoice[] {
+  return invoices.map((invoice) => ({
+    ...invoice,
+    items: Array.isArray(invoice.items) ? invoice.items.map(normalizeInvoiceItem) : [],
+  }))
+}
+
 function normalizeState(data: Partial<AppState>): AppState {
   const base = emptyState()
   const normalizedStudents = normalizeStudents(Array.isArray(data.students) ? data.students : [], data.nextStudentCodeIndex)
@@ -39,7 +51,7 @@ function normalizeState(data: Partial<AppState>): AppState {
     ...data,
     guardians: Array.isArray(data.guardians) ? data.guardians : [],
     students: normalizedStudents.students,
-    invoices: Array.isArray(data.invoices) ? data.invoices : [],
+    invoices: Array.isArray(data.invoices) ? normalizeInvoices(data.invoices) : [],
     voidedInvoiceNumbers: Array.isArray(data.voidedInvoiceNumbers) ? data.voidedInvoiceNumbers : [],
     settings: {
       ...base.settings,

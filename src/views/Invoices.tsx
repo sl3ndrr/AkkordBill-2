@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
-import { CalendarDays, ChevronDown, Copy, Download, Edit3, FilePlus2, Mail, MoreHorizontal, Printer, Search, Send, Trash2 } from 'lucide-react'
+import { CalendarDays, ChevronDown, Copy, Download, Edit3, FilePlus2, Mail, MoreVertical, Printer, Search, Send, Trash2 } from 'lucide-react'
 import type { AppState, Invoice, InvoiceStatus } from '../types'
 import { EmptyState } from '../components/EmptyState'
-import { createReminder, effectiveStatus, euro, formatDate, formatDateLong, guardianName, invoiceTotal, mailtoUrl, statusLabel, studentName } from '../lib/utils'
+import { type InvoiceMenuAction, runInvoiceMenuAction } from '../lib/invoiceMenu'
+import { billingPeriodFromItems, createReminder, effectiveStatus, euro, formatDate, formatDateLong, guardianName, invoiceTotal, mailtoUrl, statusLabel, studentName } from '../lib/utils'
 
 interface InvoicesProps {
   state: AppState
@@ -21,6 +22,7 @@ export function Invoices({ state, selectedId, onSelect, onNew, onEdit, onDuplica
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<'all' | InvoiceStatus>('all')
   const [year, setYear] = useState('all')
+  const [menu, setMenu] = useState<{ invoiceId: string; top: number; left: number } | null>(null)
   const selected = state.invoices.find((invoice) => invoice.id === selectedId) ?? null
   const years = [...new Set(state.invoices.map((invoice) => String(invoice.year)))].sort().reverse()
 
@@ -32,11 +34,28 @@ export function Invoices({ state, selectedId, onSelect, onNew, onEdit, onDuplica
         if (status !== 'all' && actualStatus !== status) return false
         if (year !== 'all' && String(invoice.year) !== year) return false
         if (!needle) return true
-        const haystack = [invoice.number, invoice.period, guardianName(invoice, state.guardians), studentName(invoice, state.students), ...invoice.items.map((item) => item.description)].join(' ').toLocaleLowerCase('de-DE')
+        const haystack = [invoice.number, billingPeriodFromItems(invoice.items, invoice.invoiceDate), guardianName(invoice, state.guardians), studentName(invoice, state.students), ...invoice.items.map((item) => item.description)].join(' ').toLocaleLowerCase('de-DE')
         return haystack.includes(needle)
       })
       .sort((a, b) => b.invoiceDate.localeCompare(a.invoiceDate) || b.createdAt.localeCompare(a.createdAt))
   }, [search, state.guardians, state.invoices, state.students, status, year])
+
+  const toggleMenu = (button: HTMLButtonElement, invoice: Invoice) => {
+    if (menu?.invoiceId === invoice.id) {
+      setMenu(null)
+      return
+    }
+    const rect = button.getBoundingClientRect()
+    const menuHeight = 184
+    const top = rect.bottom + menuHeight > window.innerHeight ? Math.max(12, rect.top - menuHeight) : rect.bottom + 6
+    const left = Math.max(12, Math.min(window.innerWidth - 196, rect.right - 184))
+    setMenu({ invoiceId: invoice.id, top, left })
+  }
+
+  const chooseMenuAction = (action: InvoiceMenuAction, invoice: Invoice) => {
+    setMenu(null)
+    runInvoiceMenuAction(action, invoice, { onEdit, onPrint, onDuplicate, onDelete })
+  }
 
   return (
     <div className="page invoice-page">
@@ -68,14 +87,27 @@ export function Invoices({ state, selectedId, onSelect, onNew, onEdit, onDuplica
                 <thead><tr><th>Rechnung</th><th>Familie / Kind</th><th>Zeitraum</th><th>Status</th><th className="align-right">Betrag</th><th><span className="sr-only">Aktion</span></th></tr></thead>
                 <tbody>{filtered.map((invoice) => {
                   const actualStatus = effectiveStatus(invoice)
+                  const period = billingPeriodFromItems(invoice.items, invoice.invoiceDate)
                   return (
                     <tr className={invoice.id === selectedId ? 'is-selected' : ''} key={invoice.id} onClick={() => onSelect(invoice.id)}>
                       <td><strong>{invoice.number ?? 'Entwurf'}</strong><small>{formatDate(invoice.invoiceDate)}</small></td>
                       <td>{guardianName(invoice, state.guardians)}<small>{studentName(invoice, state.students)}</small></td>
-                      <td>{invoice.period}</td>
+                      <td>{period}</td>
                       <td><span className={`status-chip status-chip--${actualStatus}`}><i />{statusLabel[actualStatus]}</span></td>
                       <td className="align-right"><strong>{euro.format(invoiceTotal(invoice))}</strong></td>
-                      <td><button className="icon-button icon-button--small" onClick={(event) => { event.stopPropagation(); onSelect(invoice.id) }} aria-label={`${invoice.number ?? 'Entwurf'} öffnen`}><MoreHorizontal aria-hidden="true" /></button></td>
+                      <td className="invoice-row-actions" onClick={(event) => event.stopPropagation()}>
+                        <div className="invoice-row-menu" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setMenu(null) }}>
+                          <button className="icon-button icon-button--small" type="button" aria-haspopup="menu" aria-expanded={menu?.invoiceId === invoice.id} aria-controls={`invoice-menu-${invoice.id}`} onClick={(event) => toggleMenu(event.currentTarget, invoice)} aria-label={`Aktionen für ${invoice.number ?? 'Entwurf'} öffnen`}><MoreVertical aria-hidden="true" /></button>
+                          {menu?.invoiceId === invoice.id && (
+                            <div className="invoice-kebab-menu" id={`invoice-menu-${invoice.id}`} role="menu" style={{ top: menu.top, left: menu.left }}>
+                              <button type="button" role="menuitem" onClick={() => chooseMenuAction('edit', invoice)}><Edit3 aria-hidden="true" /> Bearbeiten</button>
+                              <button type="button" role="menuitem" onClick={() => chooseMenuAction('pdf', invoice)}><Printer aria-hidden="true" /> PDF generieren</button>
+                              <button type="button" role="menuitem" onClick={() => chooseMenuAction('duplicate', invoice)}><Copy aria-hidden="true" /> Duplizieren</button>
+                              <button className="is-danger" type="button" role="menuitem" onClick={() => chooseMenuAction('delete', invoice)}><Trash2 aria-hidden="true" /> Löschen</button>
+                            </div>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   )
                 })}</tbody>
@@ -115,6 +147,7 @@ function InvoiceDetail({ invoice, state, onClose, onEdit, onDuplicate, onDelete,
   onToast: (message: string, tone?: 'success' | 'error' | 'info') => void
 }) {
   const status = effectiveStatus(invoice)
+  const period = billingPeriodFromItems(invoice.items, invoice.invoiceDate)
   const reminder = createReminder(invoice, state.guardians, state.students)
   const canRemind = status === 'sent' || status === 'overdue'
 
@@ -131,7 +164,7 @@ function InvoiceDetail({ invoice, state, onClose, onEdit, onDuplicate, onDelete,
       </header>
       <div className="invoice-detail__amount"><strong>{euro.format(invoiceTotal(invoice))}</strong><span className={`status-chip status-chip--${status}`}><i />{statusLabel[status]}</span></div>
       <dl className="detail-list">
-        <div><dt><CalendarDays aria-hidden="true" /> Leistungszeitraum</dt><dd>{invoice.period}</dd></div>
+        <div><dt><CalendarDays aria-hidden="true" /> Leistungszeitraum</dt><dd>{period}</dd></div>
         <div><dt>Rechnungsdatum</dt><dd>{formatDateLong(invoice.invoiceDate)}</dd></div>
         <div><dt>Fällig am</dt><dd>{formatDateLong(invoice.dueDate)}</dd></div>
         <div><dt>Unterricht für</dt><dd>{studentName(invoice, state.students)}</dd></div>

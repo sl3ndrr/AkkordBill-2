@@ -1,4 +1,4 @@
-import type { AppState, Guardian, Invoice, InvoiceItem, InvoiceStatus, Settings, Student } from '../types'
+import type { AppState, Guardian, Invoice, InvoiceItem, InvoiceStatus, LessonType, Settings, Student } from '../types'
 
 export const euro = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })
 export const number = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 })
@@ -19,6 +19,77 @@ export function formatDateLong(value: string): string {
   if (!value) return '–'
   const parsed = parseDate(value)
   return Number.isNaN(parsed.getTime()) ? value : dateLong.format(parsed)
+}
+
+function isoDate(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+export function calculateDueDate(invoiceDate: string, paymentTermDays: number): string {
+  const parsed = parseDate(invoiceDate)
+  if (Number.isNaN(parsed.getTime())) return ''
+  parsed.setDate(parsed.getDate() + Math.max(0, Math.trunc(paymentTermDays)))
+  return isoDate(parsed)
+}
+
+export function billingPeriodFromItems(items: Array<Pick<InvoiceItem, 'serviceDate'>>, fallbackDate = ''): string {
+  const dates = items
+    .map((item) => item.serviceDate)
+    .filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(parseDate(value).getTime()))
+    .sort()
+  const firstValue = dates[0] ?? fallbackDate
+  const lastValue = dates.at(-1) ?? fallbackDate
+  if (!firstValue || !lastValue) return ''
+  const first = parseDate(firstValue)
+  const last = parseDate(lastValue)
+  if (Number.isNaN(first.getTime()) || Number.isNaN(last.getTime())) return ''
+  const monthYear = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' })
+  if (first.getFullYear() === last.getFullYear() && first.getMonth() === last.getMonth()) return monthYear.format(first)
+  if (first.getFullYear() === last.getFullYear()) {
+    const month = new Intl.DateTimeFormat('de-DE', { month: 'long' })
+    return `${month.format(first)} bis ${monthYear.format(last)}`
+  }
+  return `${monthYear.format(first)} bis ${monthYear.format(last)}`
+}
+
+export const lessonTypeLabel: Record<LessonType, string> = {
+  solo: 'Solo',
+  duo: 'Duo',
+}
+
+export function lessonRate(settings: Pick<Settings, 'privateRate' | 'duoRate'>, lessonType: LessonType): number {
+  return lessonType === 'duo' ? settings.duoRate : settings.privateRate
+}
+
+export function lessonDescription(description: string, lessonType: LessonType): string {
+  const base = description.replace(/\s*\((?:solo|duo|einzel)\)\s*$/iu, '').trim() || 'Gitarrenunterricht'
+  return `${base} (${lessonTypeLabel[lessonType]})`
+}
+
+export function applyLessonType(item: InvoiceItem, lessonType: LessonType, settings: Pick<Settings, 'privateRate' | 'duoRate'>): InvoiceItem {
+  return {
+    ...item,
+    lessonType,
+    description: lessonDescription(item.description, lessonType),
+    unitPrice: lessonRate(settings, lessonType),
+  }
+}
+
+export function createLessonItem(studentId: string, serviceDate: string, settings: Pick<Settings, 'privateRate' | 'duoRate'>, id = uid('item')): InvoiceItem {
+  const lessonType: LessonType = 'solo'
+  return {
+    id,
+    studentId,
+    serviceDate,
+    lessonType,
+    description: lessonDescription('Gitarrenunterricht', lessonType),
+    quantity: 1,
+    unit: 'Std.',
+    unitPrice: lessonRate(settings, lessonType),
+  }
 }
 
 export function invoiceTotal(invoice: Pick<Invoice, 'items'>): number {

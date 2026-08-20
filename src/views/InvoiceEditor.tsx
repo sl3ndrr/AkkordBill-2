@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Calendar, CircleDollarSign, FileCheck2, Plus, Save, Send, Trash2 } from 'lucide-react'
-import type { Guardian, InvoiceDraft, Settings, Student } from '../types'
+import type { Guardian, InvoiceDraft, LessonType, Settings, Student } from '../types'
 import { Modal } from '../components/Modal'
-import { euro, itemTotal, uid } from '../lib/utils'
+import { applyLessonType, billingPeriodFromItems, calculateDueDate, createLessonItem, euro, itemTotal } from '../lib/utils'
 
 interface InvoiceEditorProps {
   open: boolean
@@ -26,6 +26,7 @@ export function InvoiceEditor({ open, draft, guardians, students, settings, edit
   const linkedGuardianIds = useMemo(() => new Set(form.studentIds.flatMap((id) => students.find((student) => student.id === id)?.guardianIds ?? [])), [form.studentIds, students])
   const eligibleGuardians = linkedGuardianIds.size ? guardians.filter((guardian) => linkedGuardianIds.has(guardian.id)) : guardians
   const total = form.items.reduce((sum, item) => sum + itemTotal(item), 0)
+  const calculatedPeriod = billingPeriodFromItems(form.items, form.invoiceDate)
 
   const selectStudent = (student: Student) => {
     setForm((current) => {
@@ -36,13 +37,36 @@ export function InvoiceEditor({ open, draft, guardians, students, settings, edit
         : [...new Set([...current.guardianIds, ...student.guardianIds])]
       const items = isSelected
         ? current.items.filter((item) => item.studentId !== student.id)
-        : current.items.length ? current.items : [newItem(student.id, current.invoiceDate, settings.privateRate)]
-      return { ...current, studentIds, guardianIds, items }
+        : current.items.length ? current.items : [createLessonItem(student.id, current.invoiceDate, settings)]
+      return { ...current, studentIds, guardianIds, items, period: billingPeriodFromItems(items, current.invoiceDate) }
     })
   }
 
   const updateItem = (id: string, key: string, value: string | number) => {
     setForm((current) => ({ ...current, items: current.items.map((item) => item.id === id ? { ...item, [key]: value } : item) }))
+  }
+
+  const updateServiceDate = (id: string, serviceDate: string) => {
+    setForm((current) => {
+      const items = current.items.map((item) => item.id === id ? { ...item, serviceDate } : item)
+      return { ...current, items, period: billingPeriodFromItems(items, current.invoiceDate) }
+    })
+  }
+
+  const updateLessonType = (id: string, lessonType: LessonType) => {
+    setForm((current) => ({
+      ...current,
+      items: current.items.map((item) => item.id === id ? applyLessonType(item, lessonType, settings) : item),
+    }))
+  }
+
+  const updateInvoiceDate = (invoiceDate: string) => {
+    setForm((current) => ({
+      ...current,
+      invoiceDate,
+      dueDate: calculateDueDate(invoiceDate, settings.paymentTermDays),
+      period: billingPeriodFromItems(current.items, invoiceDate),
+    }))
   }
 
   const addItem = () => {
@@ -51,7 +75,10 @@ export function InvoiceEditor({ open, draft, guardians, students, settings, edit
       setErrors(['Wähle zuerst mindestens ein Kind aus.'])
       return
     }
-    setForm((current) => ({ ...current, items: [...current.items, newItem(studentId, current.invoiceDate, settings.privateRate)] }))
+    setForm((current) => {
+      const items = [...current.items, createLessonItem(studentId, current.invoiceDate, settings)]
+      return { ...current, items, period: billingPeriodFromItems(items, current.invoiceDate) }
+    })
   }
 
   const submit = (finalize: boolean) => {
@@ -59,11 +86,14 @@ export function InvoiceEditor({ open, draft, guardians, students, settings, edit
     if (!form.studentIds.length) nextErrors.push('Mindestens ein Kind auswählen.')
     if (!form.guardianIds.length) nextErrors.push('Mindestens eine empfangende Person auswählen.')
     if (!form.invoiceDate || !form.dueDate) nextErrors.push('Rechnungs- und Fälligkeitsdatum angeben.')
-    if (!form.period.trim()) nextErrors.push('Leistungszeitraum angeben.')
+    if (!calculatedPeriod) nextErrors.push('Leistungszeitraum über die Positionsdaten angeben.')
     if (!form.items.length) nextErrors.push('Mindestens eine Position ergänzen.')
-    if (form.items.some((item) => !item.description.trim() || item.quantity <= 0 || item.unitPrice < 0)) nextErrors.push('Alle Positionen vollständig und mit gültigen Werten ausfüllen.')
+    if (form.items.some((item) => !item.serviceDate || !item.description.trim() || item.quantity <= 0 || item.unitPrice < 0)) nextErrors.push('Alle Positionen vollständig und mit gültigen Werten ausfüllen.')
     setErrors(nextErrors)
-    if (!nextErrors.length) onSave(finalized ? { ...form, recipientStrategy: 'joint' } : form, finalize)
+    if (!nextErrors.length) {
+      const normalized = { ...form, period: calculatedPeriod }
+      onSave(finalized ? { ...normalized, recipientStrategy: 'joint' } : normalized, finalize)
+    }
   }
 
   return (
@@ -99,9 +129,9 @@ export function InvoiceEditor({ open, draft, guardians, students, settings, edit
         <section className="form-section">
           <div className="form-section__heading"><span>2</span><div><h3>Zeitraum & Fälligkeit</h3><p>Die formalen Angaben der Rechnung.</p></div></div>
           <div className="form-grid form-grid--3">
-            <label className="field"><span>Rechnungsdatum</span><div className="input-with-icon"><Calendar aria-hidden="true" /><input type="date" value={form.invoiceDate} onChange={(event) => setForm({ ...form, invoiceDate: event.target.value })} /></div></label>
-            <label className="field"><span>Fällig am</span><div className="input-with-icon"><Calendar aria-hidden="true" /><input type="date" value={form.dueDate} onChange={(event) => setForm({ ...form, dueDate: event.target.value })} /></div></label>
-            <label className="field"><span>Leistungszeitraum</span><input type="text" value={form.period} onChange={(event) => setForm({ ...form, period: event.target.value })} placeholder="z. B. 3. Quartal 2026" /></label>
+            <label className="field"><span>Rechnungsdatum</span><div className="input-with-icon"><Calendar aria-hidden="true" /><input type="date" value={form.invoiceDate} onChange={(event) => updateInvoiceDate(event.target.value)} /></div></label>
+            <label className="field"><span>Fällig am</span><div className="input-with-icon"><Calendar aria-hidden="true" /><input type="date" value={form.dueDate} readOnly /></div><small>{settings.paymentTermDays} Tage nach Rechnungsdatum</small></label>
+            <label className="field"><span>Leistungszeitraum</span><input type="text" value={calculatedPeriod} readOnly /><small>Automatisch aus den Positionsdaten</small></label>
           </div>
         </section>
 
@@ -111,14 +141,15 @@ export function InvoiceEditor({ open, draft, guardians, students, settings, edit
             {form.items.map((item, index) => (
               <div className="editor-item" key={item.id}>
                 <span className="editor-item__number">{String(index + 1).padStart(2, '0')}</span>
-                <label className="field field--date"><span>Datum</span><input type="date" value={item.serviceDate} onChange={(event) => updateItem(item.id, 'serviceDate', event.target.value)} /></label>
-                <label className="field field--description"><span>Beschreibung</span><input type="text" value={item.description} onChange={(event) => updateItem(item.id, 'description', event.target.value)} placeholder="z. B. Akkordwechsel (Einzel)" /></label>
-                {form.studentIds.length > 1 && <label className="field"><span>Kind</span><select value={item.studentId} onChange={(event) => updateItem(item.id, 'studentId', event.target.value)}>{form.studentIds.map((id) => <option key={id} value={id}>{students.find((student) => student.id === id)?.name}</option>)}</select></label>}
+                <label className="field field--date"><span>Datum</span><input type="date" value={item.serviceDate} onChange={(event) => updateServiceDate(item.id, event.target.value)} /></label>
+                <label className="field field--lesson-type"><span>Art</span><select value={item.lessonType} onChange={(event) => updateLessonType(item.id, event.target.value as LessonType)}><option value="solo">Solo</option><option value="duo">Duo</option></select></label>
+                <label className="field field--description"><span>Beschreibung</span><input type="text" value={item.description} onChange={(event) => updateItem(item.id, 'description', event.target.value)} placeholder="z. B. Akkordwechsel (Solo)" /></label>
+                {form.studentIds.length > 1 && <label className="field field--student"><span>Kind</span><select value={item.studentId} onChange={(event) => updateItem(item.id, 'studentId', event.target.value)}>{form.studentIds.map((id) => <option key={id} value={id}>{students.find((student) => student.id === id)?.name}</option>)}</select></label>}
                 <label className="field field--quantity"><span>Menge</span><input type="number" min="0.01" step="0.25" value={item.quantity} onChange={(event) => updateItem(item.id, 'quantity', Number(event.target.value))} /></label>
                 <label className="field field--unit"><span>Einheit</span><select value={item.unit} onChange={(event) => updateItem(item.id, 'unit', event.target.value)}><option>Std.</option><option>Pauschale</option><option>Stück</option></select></label>
                 <label className="field field--price"><span>Einzelpreis</span><div className="input-with-suffix"><input type="number" min="0" step="0.01" value={item.unitPrice} onChange={(event) => updateItem(item.id, 'unitPrice', Number(event.target.value))} /><span>€</span></div></label>
                 <div className="editor-item__total"><span>Betrag</span><strong>{euro.format(itemTotal(item))}</strong></div>
-                <button className="icon-button icon-button--small editor-item__delete" type="button" onClick={() => setForm((current) => ({ ...current, items: current.items.filter((candidate) => candidate.id !== item.id) }))} aria-label={`Position ${index + 1} löschen`}><Trash2 aria-hidden="true" /></button>
+                <button className="icon-button icon-button--small editor-item__delete" type="button" onClick={() => setForm((current) => { const items = current.items.filter((candidate) => candidate.id !== item.id); return { ...current, items, period: billingPeriodFromItems(items, current.invoiceDate) } })} aria-label={`Position ${index + 1} löschen`}><Trash2 aria-hidden="true" /></button>
               </div>
             ))}
             {!form.items.length && <button className="add-position-placeholder" type="button" onClick={addItem}><CircleDollarSign aria-hidden="true" /><strong>Erste Position ergänzen</strong><span>Datum, Thema, Menge und Preis erfassen</span></button>}
@@ -136,16 +167,4 @@ export function InvoiceEditor({ open, draft, guardians, students, settings, edit
       </form>
     </Modal>
   )
-}
-
-function newItem(studentId: string, date: string, rate: number) {
-  return {
-    id: uid('item'),
-    studentId,
-    serviceDate: date,
-    description: 'Gitarrenunterricht (Einzel)',
-    quantity: 1,
-    unit: 'Std.' as const,
-    unitPrice: rate,
-  }
 }
