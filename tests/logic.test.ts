@@ -7,7 +7,7 @@ import type { Invoice, Student } from '../src/types'
 import changelog from '../src/content/changelog.json'
 import { InvoicePrint } from '../src/components/InvoicePrint'
 import { defaultSettings, emptyState } from '../src/lib/defaults'
-import { type InvoiceMenuAction, runInvoiceMenuAction } from '../src/lib/invoiceMenu'
+import { calculateInvoiceMenuPosition, type InvoiceMenuAction, runInvoiceMenuAction } from '../src/lib/invoiceMenu'
 import { loadLastBackupAt, loadState, parseBackup, recordBackupExport, saveState, serializeBackup } from '../src/lib/storage'
 import { applyLessonType, billingPeriodFromItems, buildEpcPayload, calculateDueDate, createLessonItem, effectiveStatus, ensureStudentCodePattern, formatDateLong, formatInvoiceNumber, invoicePdfTitle, isValidIban, nextInvoiceAllocation, studentCodeForIndex } from '../src/lib/utils'
 import { APP_VERSION } from '../src/version'
@@ -207,6 +207,29 @@ test('alle Kebab-Menü-Aktionen werden an den vorgesehenen Handler weitergeleite
   const actions: InvoiceMenuAction[] = ['edit', 'pdf', 'duplicate', 'delete']
   actions.forEach((action) => runInvoiceMenuAction(action, invoice(), handlers))
   assert.deepEqual(calls, ['edit:invoice-test', 'pdf:invoice-test', 'duplicate:invoice-test', 'delete:invoice-test'])
+})
+
+test('Kebab-Menü wird rechtsbündig verankert und bleibt vollständig im Viewport', () => {
+  assert.deepEqual(calculateInvoiceMenuPosition(
+    { top: 100, right: 900, bottom: 140 },
+    { width: 184, height: 176 },
+    { width: 1000, height: 800 },
+  ), { top: 146, left: 716 })
+
+  assert.deepEqual(calculateInvoiceMenuPosition(
+    { top: 700, right: 990, bottom: 740 },
+    { width: 184, height: 176 },
+    { width: 1000, height: 800 },
+  ), { top: 518, left: 804 })
+
+  assert.deepEqual(calculateInvoiceMenuPosition(
+    { top: 100, right: 40, bottom: 140 },
+    { width: 184, height: 176 },
+    { width: 320, height: 480 },
+  ), { top: 146, left: 12 })
+
+  const source = readFileSync(new URL('../src/views/Invoices.tsx', import.meta.url), 'utf8')
+  assert.match(source, /createPortal\([\s\S]*document\.body/)
 })
 
 test('vollständiges Backup lässt sich wiederherstellen', () => {

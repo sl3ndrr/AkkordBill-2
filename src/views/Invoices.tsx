@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { CalendarDays, ChevronDown, Copy, Download, Edit3, FilePlus2, Mail, MoreVertical, Printer, Search, Send, Trash2 } from 'lucide-react'
 import type { AppState, Invoice, InvoiceStatus } from '../types'
 import { EmptyState } from '../components/EmptyState'
-import { type InvoiceMenuAction, runInvoiceMenuAction } from '../lib/invoiceMenu'
+import { calculateInvoiceMenuPosition, type InvoiceMenuAction, type InvoiceMenuPosition, runInvoiceMenuAction } from '../lib/invoiceMenu'
 import { billingPeriodFromItems, createReminder, effectiveStatus, euro, formatDate, formatDateLong, guardianName, invoiceTotal, mailtoUrl, statusLabel, studentName } from '../lib/utils'
 
 interface InvoicesProps {
@@ -22,8 +23,11 @@ export function Invoices({ state, selectedId, onSelect, onNew, onEdit, onDuplica
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<'all' | InvoiceStatus>('all')
   const [year, setYear] = useState('all')
-  const [menu, setMenu] = useState<{ invoiceId: string; top: number; left: number } | null>(null)
+  const [menu, setMenu] = useState<{ invoiceId: string; trigger: HTMLButtonElement } | null>(null)
+  const [menuPosition, setMenuPosition] = useState<InvoiceMenuPosition | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   const selected = state.invoices.find((invoice) => invoice.id === selectedId) ?? null
+  const menuInvoice = menu ? state.invoices.find((invoice) => invoice.id === menu.invoiceId) ?? null : null
   const years = [...new Set(state.invoices.map((invoice) => String(invoice.year)))].sort().reverse()
 
   const filtered = useMemo(() => {
@@ -40,16 +44,59 @@ export function Invoices({ state, selectedId, onSelect, onNew, onEdit, onDuplica
       .sort((a, b) => b.invoiceDate.localeCompare(a.invoiceDate) || b.createdAt.localeCompare(a.createdAt))
   }, [search, state.guardians, state.invoices, state.students, status, year])
 
+  const updateMenuPosition = useCallback(() => {
+    if (!menu || !menuRef.current) return
+    if (!menu.trigger.isConnected) {
+      setMenu(null)
+      return
+    }
+    const anchorRect = menu.trigger.getBoundingClientRect()
+    const menuRect = menuRef.current.getBoundingClientRect()
+    setMenuPosition(calculateInvoiceMenuPosition(anchorRect, menuRect, {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    }))
+  }, [menu])
+
+  useLayoutEffect(() => {
+    if (!menu) {
+      setMenuPosition(null)
+      return
+    }
+    updateMenuPosition()
+  }, [menu, updateMenuPosition])
+
+  useEffect(() => {
+    if (!menu) return
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target as Node
+      if (menu.trigger.contains(target) || menuRef.current?.contains(target)) return
+      setMenu(null)
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setMenu(null)
+      menu.trigger.focus()
+    }
+    document.addEventListener('pointerdown', closeOnOutsidePointer)
+    document.addEventListener('keydown', closeOnEscape)
+    window.addEventListener('resize', updateMenuPosition)
+    window.addEventListener('scroll', updateMenuPosition, true)
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsidePointer)
+      document.removeEventListener('keydown', closeOnEscape)
+      window.removeEventListener('resize', updateMenuPosition)
+      window.removeEventListener('scroll', updateMenuPosition, true)
+    }
+  }, [menu, updateMenuPosition])
+
   const toggleMenu = (button: HTMLButtonElement, invoice: Invoice) => {
     if (menu?.invoiceId === invoice.id) {
       setMenu(null)
       return
     }
-    const rect = button.getBoundingClientRect()
-    const menuHeight = 184
-    const top = rect.bottom + menuHeight > window.innerHeight ? Math.max(12, rect.top - menuHeight) : rect.bottom + 6
-    const left = Math.max(12, Math.min(window.innerWidth - 196, rect.right - 184))
-    setMenu({ invoiceId: invoice.id, top, left })
+    setMenuPosition(null)
+    setMenu({ invoiceId: invoice.id, trigger: button })
   }
 
   const chooseMenuAction = (action: InvoiceMenuAction, invoice: Invoice) => {
@@ -96,16 +143,8 @@ export function Invoices({ state, selectedId, onSelect, onNew, onEdit, onDuplica
                       <td><span className={`status-chip status-chip--${actualStatus}`}><i />{statusLabel[actualStatus]}</span></td>
                       <td className="align-right"><strong>{euro.format(invoiceTotal(invoice))}</strong></td>
                       <td className="invoice-row-actions" onClick={(event) => event.stopPropagation()}>
-                        <div className="invoice-row-menu" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setMenu(null) }}>
+                        <div className="invoice-row-menu">
                           <button className="icon-button icon-button--small" type="button" aria-haspopup="menu" aria-expanded={menu?.invoiceId === invoice.id} aria-controls={`invoice-menu-${invoice.id}`} onClick={(event) => toggleMenu(event.currentTarget, invoice)} aria-label={`Aktionen für ${invoice.number ?? 'Entwurf'} öffnen`}><MoreVertical aria-hidden="true" /></button>
-                          {menu?.invoiceId === invoice.id && (
-                            <div className="invoice-kebab-menu" id={`invoice-menu-${invoice.id}`} role="menu" style={{ top: menu.top, left: menu.left }}>
-                              <button type="button" role="menuitem" onClick={() => chooseMenuAction('edit', invoice)}><Edit3 aria-hidden="true" /> Bearbeiten</button>
-                              <button type="button" role="menuitem" onClick={() => chooseMenuAction('pdf', invoice)}><Printer aria-hidden="true" /> PDF generieren</button>
-                              <button type="button" role="menuitem" onClick={() => chooseMenuAction('duplicate', invoice)}><Copy aria-hidden="true" /> Duplizieren</button>
-                              <button className="is-danger" type="button" role="menuitem" onClick={() => chooseMenuAction('delete', invoice)}><Trash2 aria-hidden="true" /> Löschen</button>
-                            </div>
-                          )}
                         </div>
                       </td>
                     </tr>
@@ -130,6 +169,25 @@ export function Invoices({ state, selectedId, onSelect, onNew, onEdit, onDuplica
             />
           )}
         </div>
+      )}
+      {menu && menuInvoice && createPortal(
+        <div
+          className="invoice-kebab-menu"
+          id={`invoice-menu-${menu.invoiceId}`}
+          ref={menuRef}
+          role="menu"
+          style={{
+            top: menuPosition?.top ?? 0,
+            left: menuPosition?.left ?? 0,
+            visibility: menuPosition ? 'visible' : 'hidden',
+          }}
+        >
+          <button type="button" role="menuitem" onClick={() => chooseMenuAction('edit', menuInvoice)}><Edit3 aria-hidden="true" /> Bearbeiten</button>
+          <button type="button" role="menuitem" onClick={() => chooseMenuAction('pdf', menuInvoice)}><Printer aria-hidden="true" /> PDF generieren</button>
+          <button type="button" role="menuitem" onClick={() => chooseMenuAction('duplicate', menuInvoice)}><Copy aria-hidden="true" /> Duplizieren</button>
+          <button className="is-danger" type="button" role="menuitem" onClick={() => chooseMenuAction('delete', menuInvoice)}><Trash2 aria-hidden="true" /> Löschen</button>
+        </div>,
+        document.body,
       )}
     </div>
   )
