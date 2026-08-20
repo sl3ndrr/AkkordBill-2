@@ -1,6 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import type { Invoice, Student } from '../src/types'
+import changelog from '../src/content/changelog.json'
+import { InvoicePrint } from '../src/components/InvoicePrint'
 import { defaultSettings, emptyState } from '../src/lib/defaults'
 import { type InvoiceMenuAction, runInvoiceMenuAction } from '../src/lib/invoiceMenu'
 import { loadLastBackupAt, loadState, parseBackup, recordBackupExport, saveState, serializeBackup } from '../src/lib/storage'
@@ -151,6 +156,37 @@ test('Rechnungsdokument druckt automatisch berechneten Zeitraum und Fälligkeit'
   assert.equal(formatDateLong(testInvoice.dueDate), '15. August 2026')
 })
 
+test('Druck-Testrechnung mit 24 Positionen nutzt mehrseitige Schutzregeln', () => {
+  const items = Array.from({ length: 24 }, (_, index) => createLessonItem(
+    'student-a',
+    index < 12 ? `2026-08-${String(index + 1).padStart(2, '0')}` : `2026-09-${String(index - 11).padStart(2, '0')}`,
+    defaultSettings,
+    `item-print-${index}`,
+  ))
+  assert.equal(items.length, 24)
+  assert.equal(billingPeriodFromItems(items), 'August bis September 2026')
+
+  const markup = renderToStaticMarkup(createElement(InvoicePrint, {
+    invoice: invoice({ items }),
+    guardians: [],
+    students: [student('student-a', 'Anna', 'a')],
+    settings: defaultSettings,
+  }))
+  assert.equal(markup.match(/class="invoice-item-row(?:\s|")/g)?.length, 24)
+  assert.match(markup, /August bis September 2026/)
+  assert.match(markup, /August 2026/)
+  assert.match(markup, /September 2026/)
+  assert.ok(markup.indexOf('invoice-footer') > markup.lastIndexOf('</table>'))
+  assert.doesNotMatch(markup, /Seite 1 von 1/)
+
+  const stylesheet = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
+  assert.match(stylesheet, /\.invoice-table tr \{ break-inside: avoid; page-break-inside: avoid; \}/)
+  assert.match(stylesheet, /@page \{ size: A4 portrait; margin: 16mm 20mm 14mm; \}/)
+  assert.match(stylesheet, /\.invoice-footer \{ position: static;/)
+  assert.doesNotMatch(stylesheet, /page-break-after: always/)
+  assert.doesNotMatch(stylesheet, /\.invoice-footer \{ position: fixed;/)
+})
+
 test('alle Kebab-Menü-Aktionen werden an den vorgesehenen Handler weitergeleitet', () => {
   const calls: string[] = []
   const handlers = {
@@ -224,8 +260,12 @@ test('Zeitpunkt des letzten Backup-Exports wird persistiert', () => {
   })
 })
 
-test('sichtbare App-Version ist 1.0.2', () => {
-  assert.equal(APP_VERSION, '1.0.2')
+test('sichtbare App-Version und neuester Changelog-Eintrag sind 1.0.3', () => {
+  assert.equal(APP_VERSION, '1.0.3')
+  assert.ok(Array.isArray(changelog))
+  assert.equal(changelog[0]?.version, APP_VERSION)
+  assert.ok((changelog[0]?.changes.length ?? 0) >= 2)
+  assert.ok(changelog.length >= 2)
 })
 
 test('nicht unterstütztes Backup wird abgelehnt', () => {

@@ -1,0 +1,19 @@
+[
+  {
+    "version": "1.0.3",
+    "date": "20.08.2026",
+    "changes": [
+      "PDF-Drucklayout für mehrseitige Rechnungen korrigiert",
+      "Interaktives Changelog-Modal mit Material 3 Design integriert"
+    ]
+  },
+  {
+    "version": "1.0.2",
+    "date": "20.08.2026",
+    "changes": [
+      "Konfigurierbare Solo- und Duo-Preise für Rechnungspositionen ergänzt",
+      "Automatische Abrechnungszeiträume, Fälligkeiten und Backup-Hinweise integriert",
+      "Dark- und Lightmode sowie neue Feedback- und Über-mich-Navigation hinzugefügt"
+    ]
+  }
+]
