@@ -3,7 +3,7 @@
     "version": "1.0.3",
     "date": "20.08.2026",
     "changes": [
-      "PDF-Drucklayout für mehrseitige Rechnungen korrigiert",
+      "PDF-Drucklayout mit kollisionsfreien Fußzeilen auf jeder Rechnungsseite korrigiert",
       "Interaktives Changelog-Modal mit Material 3 Design integriert"
     ]
   },
