@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { Invoice, Student } from '../src/types'
 import { defaultSettings, emptyState } from '../src/lib/defaults'
-import { parseBackup, serializeBackup } from '../src/lib/storage'
+import { loadState, parseBackup, saveState, serializeBackup } from '../src/lib/storage'
 import { buildEpcPayload, effectiveStatus, ensureStudentCodePattern, formatInvoiceNumber, isValidIban, nextInvoiceAllocation, studentCodeForIndex } from '../src/lib/utils'
 import { APP_VERSION } from '../src/version'
 
@@ -113,6 +113,30 @@ test('ältere Backups erhalten stabile Kinderkennzeichen in Speicherreihenfolge'
   assert.deepEqual(restored.students.map((item) => item.billingCode), ['a', 'b'])
   assert.equal(restored.nextStudentCodeIndex, 2)
   assert.equal(restored.settings.numberPattern, '{YYYY}-{K}-{NNNN}')
+})
+
+test('manuelle Theme-Auswahl bleibt nach einem Reload erhalten', () => {
+  const originalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
+  const entries = new Map<string, string>()
+  const localStorageMock: Storage = {
+    get length() { return entries.size },
+    clear: () => entries.clear(),
+    getItem: (key) => entries.get(key) ?? null,
+    key: (index) => [...entries.keys()][index] ?? null,
+    removeItem: (key) => entries.delete(key),
+    setItem: (key, value) => entries.set(key, value),
+  }
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: localStorageMock })
+
+  try {
+    const state = emptyState()
+    state.settings.theme = 'dark'
+    saveState(state)
+    assert.equal(loadState().settings.theme, 'dark')
+  } finally {
+    if (originalStorage) Object.defineProperty(globalThis, 'localStorage', originalStorage)
+    else Reflect.deleteProperty(globalThis, 'localStorage')
+  }
 })
 
 test('sichtbare App-Version ist 1.0.2', () => {
