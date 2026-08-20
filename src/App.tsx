@@ -14,7 +14,7 @@ import { ToastRegion } from './components/ToastRegion'
 import { InvoicePrint } from './components/InvoicePrint'
 import { createDemoState, createEmptyInvoiceDraft, emptyState } from './lib/defaults'
 import { clearDirectoryHandle, ensureWritePermission, loadLastBackupAt, loadState, parseBackup, readDirectoryHandle, recordBackupExport, saveState, serializeBackup, storeDirectoryHandle, writeBackupToDirectory } from './lib/storage'
-import { billingPeriodFromItems, calculateDueDate, downloadText, ensureStudentCodePattern, guardianName, invoicePdfTitle, nextInvoiceAllocation, parseDate, statusLabel, studentCodeForIndex, uid } from './lib/utils'
+import { billingPeriodFromItems, calculateDueDate, downloadText, ensureStudentCodePattern, guardianName, invoicePdfTitle, limitFooterText, nextInvoiceAllocation, parseDate, statusLabel, studentCodeForIndex, uid } from './lib/utils'
 import { APP_VERSION } from './version'
 
 const navItems: Array<{ key: PageKey; label: string; icon: typeof LayoutDashboard }> = [
@@ -493,10 +493,14 @@ function App() {
     },
   })
 
-  const saveSettings = (settings: SettingsType) => commit((current) => ({
+  const saveSettings = useCallback((settings: SettingsType) => commit((current) => ({
     ...current,
-    settings: { ...settings, numberPattern: ensureStudentCodePattern(settings.numberPattern) },
-  }), 'Einstellungen aktualisiert', 'settings')
+    settings: {
+      ...settings,
+      defaultLegalText: limitFooterText(settings.defaultLegalText),
+      numberPattern: ensureStudentCodePattern(settings.numberPattern),
+    },
+  }), 'Einstellungen aktualisiert', 'settings'), [commit])
   const loadDemo = () => {
     setState(createDemoState())
     toast('Beispieldaten geladen. Du kannst sie jederzeit zurücksetzen.', 'success')

@@ -351,6 +351,14 @@ test('manuelle Theme-Auswahl bleibt nach einem Reload erhalten', () => {
   })
 })
 
+test('Einstellungen werden gebündelt automatisch gespeichert', () => {
+  const source = readFileSync(new URL('../src/views/Settings.tsx', import.meta.url), 'utf8')
+  assert.match(source, /SETTINGS_AUTOSAVE_DELAY_MS = 600/)
+  assert.match(source, /window\.setTimeout\(\(\) => persist\(form\), SETTINGS_AUTOSAVE_DELAY_MS\)/)
+  assert.match(source, /Die IBAN-Prüfsumme ist nicht gültig/)
+  assert.doesNotMatch(source, /if \(!isValidIban\([^)]*\)\) return/)
+})
+
 test('Zeitpunkt des letzten Backup-Exports wird persistiert', () => {
   withMockLocalStorage(() => {
     assert.equal(loadLastBackupAt(), null)
