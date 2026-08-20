@@ -6,7 +6,8 @@
       "PDF-Drucklayout mit kollisionsfreien Fußzeilen auf jeder Rechnungsseite korrigiert",
       "Automatische Seitenangabe mit aktueller und gesamter Seitenzahl ergänzt",
       "PDF-Dateinamen um Rechnungsnummer und Kindesnamen ergänzt",
-      "Interaktives Changelog-Modal mit Material 3 Design integriert"
+      "Interaktives Changelog-Modal mit Material 3 Design integriert",
+      "Massive Erweiterung des Demo-Modus"
     ]
   },
   {
@@ -16,6 +17,21 @@
       "Konfigurierbare Solo- und Duo-Preise für Rechnungspositionen ergänzt",
       "Automatische Abrechnungszeiträume, Fälligkeiten und Backup-Hinweise integriert",
       "Dark- und Lightmode sowie neue Feedback- und Über-mich-Navigation hinzugefügt"
+    ]
+  },
+  {
+    "version": "1.0.1",
+    "date": "19.08.2026",
+    "changes": [
+      "Schnelle Behebung erster Kinderkrankheiten und kleinerer Fehler nach dem Release"
+    ]
+  },
+  {
+    "version": "1.0.0",
+    "date": "19.08.2026",
+    "changes": [
+      "Erstveröffentlichung des Projekts als voll funktionsfähige Version",
+      "Start der Systemumstellung auf die eigene Software und Fehlersuche im täglichen Arbeitseinsatz"
     ]
   }
 ]
