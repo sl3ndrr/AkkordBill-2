@@ -2,8 +2,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { Invoice, Student } from '../src/types'
 import { defaultSettings, emptyState } from '../src/lib/defaults'
+import { type InvoiceMenuAction, runInvoiceMenuAction } from '../src/lib/invoiceMenu'
 import { loadLastBackupAt, loadState, parseBackup, recordBackupExport, saveState, serializeBackup } from '../src/lib/storage'
-import { buildEpcPayload, effectiveStatus, ensureStudentCodePattern, formatInvoiceNumber, isValidIban, nextInvoiceAllocation, studentCodeForIndex } from '../src/lib/utils'
+import { applyLessonType, billingPeriodFromItems, buildEpcPayload, calculateDueDate, createLessonItem, effectiveStatus, ensureStudentCodePattern, formatDateLong, formatInvoiceNumber, isValidIban, nextInvoiceAllocation, studentCodeForIndex } from '../src/lib/utils'
 import { APP_VERSION } from '../src/version'
 
 const student = (id: string, name: string, billingCode: string): Student => ({
@@ -112,6 +113,57 @@ test('versendete Rechnung wird nach Fälligkeit als überfällig erkannt', () =>
   assert.equal(effectiveStatus(invoice({ status: 'paid' }), new Date('2026-08-20T12:00:00')), 'paid')
 })
 
+test('Solo- und Duo-Positionen übernehmen die aktuell konfigurierten Standardpreise', () => {
+  assert.equal(defaultSettings.privateRate, 30)
+  assert.equal(defaultSettings.duoRate, 20)
+  const settings = { ...defaultSettings, privateRate: 34, duoRate: 22 }
+  const solo = createLessonItem('student-a', '2026-08-05', settings, 'item-test')
+  assert.equal(solo.lessonType, 'solo')
+  assert.equal(solo.description, 'Gitarrenunterricht (Solo)')
+  assert.equal(solo.unitPrice, 34)
+
+  const duo = applyLessonType({ ...solo, description: 'Akkordwechsel (Solo)' }, 'duo', settings)
+  assert.equal(duo.lessonType, 'duo')
+  assert.equal(duo.description, 'Akkordwechsel (Duo)')
+  assert.equal(duo.unitPrice, 22)
+
+  const manuallyOverridden = { ...duo, unitPrice: 27 }
+  const changedSettings = { ...settings, privateRate: 40, duoRate: 25 }
+  assert.equal(manuallyOverridden.unitPrice, 27)
+  assert.equal(createLessonItem('student-a', '2026-08-12', changedSettings, 'item-new').unitPrice, 40)
+})
+
+test('Abrechnungszeitraum und Fälligkeit werden aus Positions- und Rechnungsdaten berechnet', () => {
+  assert.equal(billingPeriodFromItems([{ serviceDate: '2026-08-02' }, { serviceDate: '2026-08-28' }]), 'August 2026')
+  assert.equal(billingPeriodFromItems([{ serviceDate: '2026-08-28' }, { serviceDate: '2026-10-02' }]), 'August bis Oktober 2026')
+  assert.equal(billingPeriodFromItems([{ serviceDate: '2026-12-28' }, { serviceDate: '2027-01-08' }]), 'Dezember 2026 bis Januar 2027')
+  assert.equal(calculateDueDate('2026-08-01', 14), '2026-08-15')
+})
+
+test('Rechnungsdokument druckt automatisch berechneten Zeitraum und Fälligkeit', () => {
+  const item = createLessonItem('student-a', '2026-08-05', defaultSettings, 'item-print')
+  const testInvoice = invoice({
+    dueDate: calculateDueDate('2026-08-01', defaultSettings.paymentTermDays),
+    period: 'Nicht verwenden',
+    items: [item],
+  })
+  assert.equal(billingPeriodFromItems(testInvoice.items, testInvoice.invoiceDate), 'August 2026')
+  assert.equal(formatDateLong(testInvoice.dueDate), '15. August 2026')
+})
+
+test('alle Kebab-Menü-Aktionen werden an den vorgesehenen Handler weitergeleitet', () => {
+  const calls: string[] = []
+  const handlers = {
+    onEdit: (value: Invoice) => calls.push(`edit:${value.id}`),
+    onPrint: (value: Invoice) => calls.push(`pdf:${value.id}`),
+    onDuplicate: (value: Invoice) => calls.push(`duplicate:${value.id}`),
+    onDelete: (value: Invoice) => calls.push(`delete:${value.id}`),
+  }
+  const actions: InvoiceMenuAction[] = ['edit', 'pdf', 'duplicate', 'delete']
+  actions.forEach((action) => runInvoiceMenuAction(action, invoice(), handlers))
+  assert.deepEqual(calls, ['edit:invoice-test', 'pdf:invoice-test', 'duplicate:invoice-test', 'delete:invoice-test'])
+})
+
 test('vollständiges Backup lässt sich wiederherstellen', () => {
   const state = emptyState()
   state.settings.issuer.name = 'Test Unterricht'
@@ -134,6 +186,24 @@ test('ältere Backups erhalten stabile Kinderkennzeichen in Speicherreihenfolge'
   assert.deepEqual(restored.students.map((item) => item.billingCode), ['a', 'b'])
   assert.equal(restored.nextStudentCodeIndex, 2)
   assert.equal(restored.settings.numberPattern, '{YYYY}-{K}-{NNNN}')
+})
+
+test('ältere Rechnungspositionen erhalten einen Typ ohne Preis- oder Titeländerung', () => {
+  const state = emptyState()
+  state.invoices = [invoice({
+    items: [{
+      ...createLessonItem('student-a', '2026-08-05', defaultSettings, 'legacy-item'),
+      lessonType: 'duo',
+      description: 'Gitarrenunterricht (Duo)',
+      unitPrice: 17,
+    }],
+  })]
+  const legacy = JSON.parse(serializeBackup(state))
+  delete legacy.data.invoices[0].items[0].lessonType
+  const restoredItem = parseBackup(JSON.stringify(legacy)).invoices[0]?.items[0]
+  assert.equal(restoredItem?.lessonType, 'duo')
+  assert.equal(restoredItem?.description, 'Gitarrenunterricht (Duo)')
+  assert.equal(restoredItem?.unitPrice, 17)
 })
 
 test('manuelle Theme-Auswahl bleibt nach einem Reload erhalten', () => {
