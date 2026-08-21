@@ -136,31 +136,33 @@ export function InvoicePrint({ invoice, guardians, students, settings }: Invoice
           </tbody>
         </table>
 
-        <section className="invoice-payment-copy">
-          <p>Bitte überweisen Sie den Gesamtbetrag von <strong>{euro.format(total)}</strong> bis zum <strong>{formatDateLong(invoice.dueDate)}</strong> auf das folgende Konto:</p>
-        </section>
+        <div className="invoice-payment-block">
+          <section className="invoice-payment-copy">
+            <p>Bitte überweisen Sie den Gesamtbetrag von <strong>{euro.format(total)}</strong> bis zum <strong>{formatDateLong(invoice.dueDate)}</strong> auf das folgende Konto:</p>
+          </section>
 
-        <section className="invoice-payment">
-          <dl>
-            <dt>Kontoinhaber:</dt><dd><strong>{account.holder || '–'}</strong></dd>
-            <dt>IBAN:</dt><dd className="mono">{formatIban(account.iban) || '–'}</dd>
-            <dt>BIC:</dt><dd className="mono">{account.bic || '–'}</dd>
-            <dt>Bank:</dt><dd>{account.bank || '–'}</dd>
-            <dt>Verwendungszweck:</dt><dd><strong>Rechnung {invoice.number ?? 'Entwurf'}</strong></dd>
-          </dl>
-          <div className="invoice-qr">
-            {qrCode ? <img src={qrCode} alt="EPC-QR-Code für die SEPA-Überweisung" /> : <span>GiroCode nach Finalisierung und mit gültiger IBAN</span>}
-            <p>Mit Banking-App scannen</p>
+          <section className="invoice-payment">
+            <dl>
+              <dt>Kontoinhaber:</dt><dd><strong>{account.holder || '–'}</strong></dd>
+              <dt>IBAN:</dt><dd className="mono">{formatIban(account.iban) || '–'}</dd>
+              <dt>BIC:</dt><dd className="mono">{account.bic || '–'}</dd>
+              <dt>Bank:</dt><dd>{account.bank || '–'}</dd>
+              <dt>Verwendungszweck:</dt><dd><strong>Rechnung {invoice.number ?? 'Entwurf'}</strong></dd>
+            </dl>
+            <div className="invoice-qr">
+              {qrCode ? <img src={qrCode} alt="EPC-QR-Code für die SEPA-Überweisung" /> : <span>GiroCode nach Finalisierung und mit gültiger IBAN</span>}
+              <p>Mit Banking-App scannen</p>
+            </div>
+          </section>
+
+          {invoice.freeText && <p className="invoice-free-text">{invoice.freeText}</p>}
+          <div className="invoice-closing">
+            <section className="invoice-thanks"><p>Vielen Dank</p><strong>{issuer.name}</strong></section>
+            <footer className="invoice-footer">
+              <div className="invoice-footer__rule" />
+              <div className="invoice-footer__content"><p>{footerText}</p><span className="invoice-footer__page" aria-hidden="true">Seite …</span></div>
+            </footer>
           </div>
-        </section>
-
-        {invoice.freeText && <p className="invoice-free-text">{invoice.freeText}</p>}
-        <div className="invoice-closing">
-          <section className="invoice-thanks"><p>Vielen Dank</p><strong>{issuer.name}</strong></section>
-          <footer className="invoice-footer">
-            <div className="invoice-footer__rule" />
-            <div className="invoice-footer__content"><p>{footerText}</p><span className="invoice-footer__page" aria-hidden="true">Seite …</span></div>
-          </footer>
         </div>
       </div>
     </article>
