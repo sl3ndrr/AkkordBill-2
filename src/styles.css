@@ -666,7 +666,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .invoice-total-row { border-top: .7pt solid #333; background: rgb(220 230 245); font-weight: 750; }
 .invoice-total-row td { padding-block: 6pt; }
 .invoice-total-row td:first-child { text-align: right; }
-.invoice-payment-copy { margin-top: 7mm; }
+.invoice-payment-block { break-inside: avoid; page-break-inside: avoid; }
+.invoice-payment-copy { margin-top: 7mm; break-inside: avoid; page-break-inside: avoid; }
 .invoice-payment-copy p { margin: 0; }
 .invoice-payment { display: grid; grid-template-columns: minmax(0, 1fr) 34mm; gap: 10mm; align-items: start; margin-top: 4mm; }
 .invoice-payment dl { display: grid; grid-template-columns: max-content 1fr; gap: 4pt 8pt; margin: 0; font-size: 8.5pt; }
@@ -838,7 +839,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .invoice-table tbody { display: table-row-group; }
   .invoice-table tr, .invoice-table th, .invoice-table td { break-inside: avoid !important; page-break-inside: avoid !important; }
   .invoice-group-heading { break-after: avoid; page-break-after: avoid; }
+  .invoice-payment-block { break-inside: avoid; page-break-inside: avoid; }
   .invoice-payment-copy { break-after: avoid; page-break-after: avoid; }
-  .invoice-payment, .invoice-free-text, .invoice-closing { break-inside: avoid; page-break-inside: avoid; }
+  .invoice-payment-copy, .invoice-payment, .invoice-free-text, .invoice-closing { break-inside: avoid; page-break-inside: avoid; }
   .invoice-footer { display: none; }
 }
